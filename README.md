@@ -40,6 +40,11 @@ excluded-worlds: []
 debug: false
 ```
 
+All three keys must remain present with valid types: `enabled` and `debug` must
+be booleans, and `excluded-worlds` must be a list of non-empty world names.
+Missing keys, null values and empty scalar values are invalid; `[]` is a valid
+empty list of excluded worlds.
+
 Set `enabled: false` to use vanilla portal travel without recording new links.
 `excluded-worlds` accepts exact, case-sensitive world names, such as
 `[world_nether]`. If either endpoint is excluded, both routing and recording
@@ -56,10 +61,11 @@ commands require `portallinked.admin`, granted to operators by default:
   Omit the name to clear your own pair. The console must supply an exact online
   player name. Their next crossing uses vanilla lookup and establishes a new pair.
 
-Reloading clears pending crossings. Forgetting also clears the selected player's
-pending crossing, so an arrival already in progress cannot recreate that link.
-If YAML syntax or a setting's type is invalid, reload reports failure and retains
-the previous active settings. Fix the file and reload again. If the initial
+Successful reloads clear pending crossings. Forgetting also clears the selected
+player's pending crossing, so an arrival already in progress cannot recreate that link.
+If a key is missing or null, YAML syntax is invalid, or a setting has the wrong
+type, reload reports failure and retains the previous active settings, pending
+crossings and saved links. Fix the file and reload again. If the initial
 configuration is invalid, linking stays disabled until a valid reload succeeds.
 
 ## Installation

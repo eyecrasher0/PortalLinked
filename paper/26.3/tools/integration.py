@@ -110,6 +110,9 @@ def main():
     phases = []
     print(f"Paper 26.3-244 test directory: {stage}", flush=True)
     for phase in [1, 2]:
+        if phase == 2:
+            (stage / "plugins/PortalLinked/config.yml").write_text(
+                "enabled: null\nexcluded-worlds: []\ndebug: false\n")
         log = stage / f"console-{phase}.log"
         run_logged([java, "-Xms512M", "-Xmx2G", "-XX:ActiveProcessorCount=4",
                     "-Dterminal.jline=false", "-Dterminal.ansi=false", f"-Dportal.phase={phase}",

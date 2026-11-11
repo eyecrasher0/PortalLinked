@@ -163,9 +163,9 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         YamlConfiguration candidate = new YamlConfiguration();
         try {
             candidate.load(new File(getDataFolder(), "config.yml"));
-            Object enabledValue = candidate.get("enabled", true);
-            Object worldsValue = candidate.get("excluded-worlds", List.of());
-            Object debugValue = candidate.get("debug", false);
+            Object enabledValue = candidate.get("enabled");
+            Object worldsValue = candidate.get("excluded-worlds");
+            Object debugValue = candidate.get("debug");
             if (!(enabledValue instanceof Boolean)) throw new IllegalArgumentException("enabled must be true or false");
             if (!(debugValue instanceof Boolean)) throw new IllegalArgumentException("debug must be true or false");
             if (!(worldsValue instanceof List<?> worlds)

@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -217,7 +218,23 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
     private void restartChecks() throws Exception {
         ServerPlayer persistence = bot("PersistProbe", PERSIST_ID, nether, 100.5, 64, 0.5);
         persistence.getBukkitEntity().loadData();
-        check(Arrays.equals(Files.readAllBytes(Path.of("expected-player-data.bin")), data(persistence)), "saved pair survives actual Paper shutdown and restart");
+        byte[] saved = Files.readAllBytes(Path.of("expected-player-data.bin"));
+        check(Arrays.equals(saved, data(persistence)), "saved pair survives actual Paper shutdown and restart");
+        Player operator = persistence.getBukkitEntity();
+        operator.setOp(true);
+        try {
+            Bukkit.dispatchCommand(operator, "portallinked status");
+            check(lastMessage(persistence).equals("PortalLinked: enabled=false, excluded-worlds=[], debug=false."),
+                    "null startup setting leaves linking disabled");
+            vanillaRoundTrip(persistence, "invalid startup configuration");
+            check(Arrays.equals(saved, data(persistence)), "invalid startup retains persisted player links");
+            writeSettings(true, List.of(), false);
+            Bukkit.dispatchCommand(operator, "portallinked reload");
+            check(lastMessage(persistence).equals("PortalLinked configuration reloaded."),
+                    "valid reload recovers from invalid startup configuration");
+        } finally {
+            operator.setOp(false);
+        }
         travel(persistence);
         check(persistence.level().getWorld().equals(overworld) && persistence.getX() >= 832 && persistence.getX() < 837,
                 "remembered return still selects original portal after restart");
@@ -316,33 +333,17 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
             check(lastMessage(admin).equals("PortalLinked: enabled=false, excluded-worlds=[], debug=false."),
                     "reload applies configuration from disk");
             vanillaRoundTrip(user, "disabled mode");
-            Bukkit.dispatchCommand(operator, "portallinked status");
-            String beforeInvalid = lastMessage(admin);
-            byte[] savedBeforeInvalid = data(user).clone();
-            for (String invalid : List.of(
-                    "enabled: false\nexcluded-worlds: [world_nether\n",
-                    "enabled: 'true'\n",
-                    "debug: 'false'\n",
-                    "excluded-worlds: world_nether\n",
-                    "excluded-worlds: [42]\n",
-                    "excluded-worlds: ['']\n")) {
-                Files.writeString(subject.getDataFolder().toPath().resolve("config.yml"), invalid);
-                Bukkit.dispatchCommand(operator, "portallinked reload");
-                check(lastMessage(admin).startsWith("PortalLinked configuration could not be reloaded."),
-                        "invalid configuration reports reload failure");
-                Bukkit.dispatchCommand(operator, "portallinked status");
-                check(lastMessage(admin).equals(beforeInvalid) && Arrays.equals(savedBeforeInvalid, data(user)),
-                        "invalid YAML or setting type preserves active settings and saved links");
-            }
-            writeSettings(false, List.of(), false);
-            Bukkit.dispatchCommand(operator, "portallinked reload");
-            check(lastMessage(admin).equals("PortalLinked configuration reloaded."),
-                    "valid reload recovers after invalid configuration");
+            invalidSettingsChecks(user, admin, "disabled mode", false);
             for (World excluded : List.of(overworld, nether)) {
-                writeSettings(true, List.of(excluded.getName()), false);
+                writeSettings(true, List.of(excluded.getName()), true);
                 Bukkit.dispatchCommand(operator, "portallinked reload");
                 vanillaRoundTrip(user, "excluded world " + excluded.getName());
+                invalidSettingsChecks(user, admin, "excluded world " + excluded.getName(), false);
             }
+            writeSettings(true, List.of("unused-world"), true);
+            Bukkit.dispatchCommand(operator, "portallinked reload");
+            invalidSettingsChecks(user, admin, "enabled mode", true);
+            logs.clear();
             writeSettings(true, List.of(overworld.getName().toUpperCase(Locale.ROOT)), true);
             Bukkit.dispatchCommand(operator, "portallinked reload");
             travel(user);
@@ -389,6 +390,58 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
             writeSettings(true, List.of(), false);
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "portallinked reload");
         }
+    }
+
+    private void invalidSettingsChecks(ServerPlayer player, ServerPlayer admin, String mode, boolean active) throws Exception {
+        Path file = subject.getDataFolder().toPath().resolve("config.yml");
+        String valid = Files.readString(file);
+        Player operator = admin.getBukkitEntity();
+        Bukkit.dispatchCommand(operator, "portallinked status");
+        String status = lastMessage(admin);
+        for (var invalid : invalidSettings().entrySet()) {
+            String description = mode + ": " + invalid.getKey();
+            byte[] saved = data(player).clone();
+            TeleportTransition inFlight = active ? destination(player) : null;
+            Files.writeString(file, invalid.getValue());
+            Bukkit.dispatchCommand(operator, "portallinked reload");
+            check(lastMessage(admin).startsWith("PortalLinked configuration could not be reloaded."),
+                    description + " reports reload failure");
+            Bukkit.dispatchCommand(operator, "portallinked status");
+            check(lastMessage(admin).equals(status) && Arrays.equals(saved, data(player)),
+                    description + " preserves all active settings and saved links");
+            if (active) {
+                check(inFlight != null && player.teleport(inFlight) != null && !Arrays.equals(saved, data(player)),
+                        description + " retains in-flight crossing for successful arrival recording");
+                travel(player);
+                check(Arrays.equals(saved, data(player)) && lastPortal.getSearchRadius() == 0
+                        && !lastPortal.getCanCreatePortal(), description + " retains ordinary remembered return");
+            } else {
+                vanillaRoundTrip(player, description);
+            }
+        }
+        Files.writeString(file, valid);
+        Bukkit.dispatchCommand(operator, "portallinked reload");
+        check(lastMessage(admin).equals("PortalLinked configuration reloaded."), mode + " recovers with a valid reload");
+        Bukkit.dispatchCommand(operator, "portallinked status");
+        check(lastMessage(admin).equals(status), mode + " recovery applies all valid settings");
+    }
+
+    private Map<String, String> invalidSettings() {
+        String valid = "enabled: true\nexcluded-worlds: []\ndebug: false\n";
+        Map<String, String> invalid = new LinkedHashMap<>();
+        invalid.put("malformed YAML", "enabled: false\nexcluded-worlds: [world_nether\ndebug: false\n");
+        invalid.put("string enabled", valid.replace("enabled: true", "enabled: 'true'"));
+        invalid.put("string debug", valid.replace("debug: false", "debug: 'false'"));
+        for (String value : List.of("world_nether", "[42]", "['']"))
+            invalid.put("invalid excluded-worlds " + value, valid.replace("excluded-worlds: []", "excluded-worlds: " + value));
+        for (String line : List.of("enabled: true\n", "excluded-worlds: []\n", "debug: false\n")) {
+            String name = line.substring(0, line.indexOf(':'));
+            for (String value : List.of("null", "", "''"))
+                invalid.put(name + " value '" + value + "'", valid.replace(line, name + ": " + value + "\n"));
+            invalid.put("missing " + name, valid.replace(line, ""));
+        }
+        invalid.put("empty configuration", "");
+        return invalid;
     }
 
     private void vanillaRoundTrip(ServerPlayer player, String mode) {
