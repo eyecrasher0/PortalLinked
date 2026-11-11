@@ -10,6 +10,8 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Orientable;
+import org.bukkit.entity.Player;
+import org.bukkit.util.BoundingBox;
 
 /** Bounded portal inspection on the server thread; no world-wide searches. */
 final class Portals {
@@ -19,6 +21,8 @@ final class Portals {
     static Optional<PortalRef> touching(Location feet) {
         World world = feet.getWorld();
         if (world == null) return Optional.empty();
+        Optional<PortalRef> centered = at(feet.getBlock());
+        if (centered.isPresent()) return centered;
         // Include the player's body at a portal edge, not just the feet block.
         int minX = floor(feet.getX() - 0.31), maxX = floor(feet.getX() + 0.31);
         int minZ = floor(feet.getZ() - 0.31), maxZ = floor(feet.getZ() + 0.31);
@@ -32,6 +36,26 @@ final class Portals {
             }
         }
         return Optional.empty();
+    }
+
+    static Optional<PortalRef> touching(Player player) {
+        Optional<PortalRef> centered = at(player.getLocation().getBlock());
+        if (centered.isPresent()) return centered;
+        BoundingBox box = player.getBoundingBox();
+        World world = player.getWorld();
+        for (int y = floor(box.getMinY()); y <= floor(Math.nextDown(box.getMaxY())); y++)
+            for (int x = floor(box.getMinX()); x <= floor(Math.nextDown(box.getMaxX())); x++)
+                for (int z = floor(box.getMinZ()); z <= floor(Math.nextDown(box.getMaxZ())); z++) {
+                    Optional<PortalRef> portal = at(world.getBlockAt(x, y, z));
+                    if (portal.isPresent()) return portal;
+                }
+        return Optional.empty();
+    }
+
+    static boolean intersects(PortalRef portal, Player player) {
+        return portal.world().equals(player.getWorld().getUID()) && player.getBoundingBox().overlaps(new BoundingBox(
+                portal.x(), portal.y(), portal.z(), portal.x() + (portal.axis() == Axis.X ? portal.width() : 1),
+                portal.y() + portal.height(), portal.z() + (portal.axis() == Axis.Z ? portal.width() : 1)));
     }
 
     static Optional<PortalRef> at(Block touched) {

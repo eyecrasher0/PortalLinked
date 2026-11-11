@@ -123,7 +123,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
                 || !activePair(event.getFrom(), player.getWorld())) return;
         // ChangedWorld is the success confirmation. PlayerPortalEvent#getTo is
         // only the pre-search position and is never used as an arrival portal.
-        Portals.touching(player.getLocation()).ifPresent(destination -> {
+        Portals.touching(player).ifPresent(destination -> {
             if (!Portals.usable(crossing.source, event.getFrom())
                     || !Portals.usable(destination, player.getWorld())) return;
             PortalLinked link = new PortalLinked(crossing.source, destination);
@@ -203,7 +203,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
             Optional<PortalRef> portal = Portals.at(contact.block.getBlock());
             if (portal.isPresent()) return portal;
         }
-        return Portals.touching(from);
+        return Portals.touching(player);
     }
 
     Optional<PortalLinked> readLink(Player player) {

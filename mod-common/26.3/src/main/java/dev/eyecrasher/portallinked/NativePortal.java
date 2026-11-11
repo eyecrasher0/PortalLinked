@@ -39,6 +39,10 @@ public record NativePortal(String world, int x, int y, int z, Direction.Axis axi
     }
 
     public static Optional<NativePortal> touching(ServerPlayer player) {
+        // The native transition position identifies its exit plane. A body can
+        // overlap another parallel portal while its feet are inside this one.
+        Optional<NativePortal> centered = at(player.level(), player.blockPosition());
+        if (centered.isPresent()) return centered;
         AABB box = player.getBoundingBox();
         for (int y = Mth.floor(box.minY); y <= Mth.floor(box.maxY); y++)
             for (int x = Mth.floor(box.minX); x <= Mth.floor(box.maxX); x++)

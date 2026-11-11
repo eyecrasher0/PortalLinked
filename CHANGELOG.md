@@ -11,6 +11,9 @@
   native player cooldowns and Nether-entry restrictions on Folia.
 - Captures Folia arrivals before player movement and invalidates pending returns
   atomically when administrators reload settings.
+- Saves completed Folia journeys before logout, respects later entry cancellations,
+  and retains native portal effects and Nether travel advancement tracking.
+- Handles adjacent arrival frames and scaled player contact bounds.
 - Shares mod player-save data and JSON configuration across the three loaders.
 - Adds native server/restart verification for every supported platform.
 - Documents admin settings, installation choices and source/build requirements.

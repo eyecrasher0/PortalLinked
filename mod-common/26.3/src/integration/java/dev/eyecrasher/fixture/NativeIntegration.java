@@ -80,6 +80,8 @@ public final class NativeIntegration {
     }
 
     private void mechanics() throws Exception {
+        adjacentArrival(Direction.Axis.X);
+        adjacentArrival(Direction.Axis.Z);
         frame(overworld, 832, 64, 0, Direction.Axis.X, 4, 5);
         frame(overworld, 800, 64, 0, Direction.Axis.X, 2, 3);
         frame(nether, 100, 64, 0, Direction.Axis.Z, 5, 6);
@@ -144,6 +146,25 @@ public final class NativeIntegration {
         Entity movedItem = item.teleport(((NetherPortalBlock) Blocks.NETHER_PORTAL).getPortalDestination(nether, item, item.blockPosition()));
         check(movedItem instanceof ItemEntity diamonds && diamonds.level() == overworld && diamonds.getItem().getCount() == 3,
                 "actual item portal travel preserves items");
+    }
+
+    private void adjacentArrival(Direction.Axis axis) throws Exception {
+        boolean x = axis == Direction.Axis.X;
+        int base = x ? 120032 : 128032, target = base / 8 - 4;
+        frame(overworld, x ? base : 8, 64, x ? 8 : base, axis, 2, 3);
+        frame(nether, x ? target : 0, 64, x ? 0 : target, axis, 2, 3);
+        frame(nether, x ? target : 1, 64, x ? 1 : target, axis, 2, 3);
+        ServerPlayer player = bot("Arrival" + axis.name(), UUID.randomUUID(), overworld, x ? base + .5 : 8.1,
+                64, x ? 8.1 : base + .5);
+        travel(player);
+        check(player.level() == nether && (x ? player.getZ() : player.getX()) >= 1
+                && (x ? player.getZ() : player.getX()) < 2, "native exit selects adjacent plane 1 on axis " + axis);
+        check((x ? pair(player).arrival().z() : pair(player).arrival().x()) == 1,
+                "arrival identity follows feet instead of overlapping neighboring frame on axis " + axis);
+        relocate(player, nether, x ? target + .5 : 1.5, 64, x ? 1.5 : target + .5);
+        travel(player);
+        check(player.level() == overworld && Math.abs((x ? player.getX() : player.getZ()) - base) < 3,
+                "centered adjacent arrival returns to original base on axis " + axis);
     }
 
     private void administration() throws Exception {

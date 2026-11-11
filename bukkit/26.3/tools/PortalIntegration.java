@@ -110,6 +110,8 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
     }
 
     private void mechanics() throws Exception {
+        adjacentArrival(Axis.X);
+        adjacentArrival(Axis.Z);
         frame(overworld, 832, 64, 0, Axis.X, 4, 5);
         frame(overworld, 800, 64, 0, Axis.X, 2, 3);
         frame(nether, 100, 64, 0, Axis.Z, 5, 6);
@@ -520,6 +522,25 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
     private TeleportTransition destination(ServerPlayer player) {
         lastPortal = null;
         return ((NetherPortalBlock) Blocks.NETHER_PORTAL).getPortalDestination(player.level(), player, player.blockPosition());
+    }
+
+    private void adjacentArrival(Axis axis) {
+        boolean x = axis == Axis.X;
+        int base = x ? 120032 : 128032, target = base / 8 - 4;
+        frame(overworld, x ? base : 8, 64, x ? 8 : base, axis, 2, 3);
+        frame(nether, x ? target : 0, 64, x ? 0 : target, axis, 2, 3);
+        frame(nether, x ? target : 1, 64, x ? 1 : target, axis, 2, 3);
+        ServerPlayer probe = bot("Arrival" + axis.name(), UUID.randomUUID(), overworld,
+                x ? base + .5 : 8.1, 64, x ? 8.1 : base + .5);
+        travel(probe);
+        check((x ? probe.getZ() : probe.getX()) >= 1 && (x ? probe.getZ() : probe.getX()) < 2,
+                "native arrival chooses adjacent plane 1 on axis " + axis);
+        check(java.nio.ByteBuffer.wrap(data(probe)).getInt(x ? 56 : 48) == 1,
+                "saved arrival identity excludes overlapping neighboring plane on axis " + axis);
+        relocate(probe, nether, x ? target + .5 : 1.5, 64, x ? 1.5 : target + .5);
+        travel(probe);
+        check(Math.abs((x ? probe.getX() : probe.getZ()) - base) < 3,
+                "centered adjacent portal returns to original base on axis " + axis);
     }
 
     private void travel(ServerPlayer player) {
