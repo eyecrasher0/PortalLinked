@@ -9,6 +9,8 @@
   player data updates, cancellation and vanilla fallback.
 - Preserves late portal-entry cancellations, exact adjacent source frames,
   native player cooldowns and Nether-entry restrictions on Folia.
+- Captures Folia arrivals before player movement and invalidates pending returns
+  atomically when administrators reload settings.
 - Shares mod player-save data and JSON configuration across the three loaders.
 - Adds native server/restart verification for every supported platform.
 - Documents admin settings, installation choices and source/build requirements.

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 EyeCrasher
 package dev.eyecrasher.portallinked;
 
+import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,9 +45,10 @@ final class FoliaRoutes implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void enter(EntityPortalEnterEvent event) {
         if (!(event.getEntity() instanceof Player player) || event.getPortalType() != PortalType.NETHER) return;
+        PortalLinkedPlugin.Settings active = plugin.settingsSnapshot();
         Trip ongoing = trips.get(player.getUniqueId());
-        if (ongoing != null && ongoing.returning && ongoing.generation == plugin.generation()) {
-            event.setCancelled(true);
+        if (ongoing != null && ongoing.returning && current(player, ongoing)) {
+            plugin.withSettings(ongoing.settings, () -> { if (current(player, ongoing)) event.setCancelled(true); });
             return;
         }
         if (player.getPortalCooldown() > 0) return;
@@ -56,28 +58,33 @@ final class FoliaRoutes implements Listener {
         World target = Bukkit.getWorlds().stream().filter(world -> world.getEnvironment()
                 == (from.getEnvironment() == World.Environment.NETHER ? World.Environment.NORMAL : World.Environment.NETHER))
                 .findFirst().orElse(null);
-        if (target == null || !plugin.activePair(from, target) || !nativeAllows(player, target)) return;
+        if (target == null || !plugin.activePair(active, from, target) || !nativeAllows(player, target)) return;
         Location contact = event.getLocation();
         PortalRef source = Bukkit.isOwnedByCurrentRegion(contact, 2)
                 ? Portals.at(contact.getBlock()).orElse(null) : null;
         if (source == null || !Portals.usable(source, from)) return;
-        if (ongoing != null && ongoing.source.equals(source) && ongoing.generation == plugin.generation()) return;
+        if (ongoing != null && ongoing.source.equals(source) && ongoing.settings == active && current(player, ongoing)) return;
         PortalRef saved = plugin.readLink(player).flatMap(pair -> pair.returnPortal(source, target.getUID())).orElse(null);
         boolean bypass = source.equals(vanillaFallback.remove(player.getUniqueId()));
-        Trip trip = new Trip(source, target.getUID(), plugin.generation(), player.getTicksLived(), saved != null && !bypass, event, cooldown);
-        trips.put(player.getUniqueId(), trip);
-        if (!trip.returning || player.isInsideVehicle() || !player.getPassengers().isEmpty()) {
-            trip.returning = false;
+        boolean returning = saved != null && !bypass && !player.isInsideVehicle() && player.getPassengers().isEmpty();
+        Trip trip = new Trip(source, target.getUID(), active, player.getTicksLived(), returning, event, cooldown);
+        if (!plugin.withSettings(active, () -> {
+            trips.put(player.getUniqueId(), trip);
+            if (returning) event.setCancelled(true);
+        })) return;
+        if (!returning) {
             watch(player, trip, 0);
             return;
         }
-        event.setCancelled(true);
         Location fromPosition = player.getLocation();
         loadPortal(saved, target, player.getWidth(), player.getHeight()).whenComplete((usable, error) -> player.getScheduler().run(plugin, task -> {
             if (!current(player, trip)) return;
             if (error != null || !Boolean.TRUE.equals(usable)) {
-                trips.remove(player.getUniqueId(), trip);
-                vanillaFallback.put(player.getUniqueId(), source);
+                plugin.withSettings(trip.settings, () -> {
+                    if (!current(player, trip)) return;
+                    trips.remove(player.getUniqueId(), trip);
+                    vanillaFallback.put(player.getUniqueId(), source);
+                });
                 plugin.debug("Saved return unavailable for " + player.getName() + "; using vanilla lookup.");
                 return;
             }
@@ -99,26 +106,47 @@ final class FoliaRoutes implements Listener {
             if (teleport.isCancelled() || teleport.getTo() == null || !current(player, trip)) {
                 finishCancelled(player, trip); return;
             }
-            player.setPortalCooldown(trip.cooldown);
-            plugin.debug("Returning " + player.getName() + " to their saved portal.");
-            player.teleportAsync(teleport.getTo(), PlayerTeleportEvent.TeleportCause.NETHER_PORTAL)
-                    .whenComplete((success, failure) -> player.getScheduler().run(plugin, completion -> {
-                        if (current(player, trip) && failure == null && Boolean.TRUE.equals(success)) record(player, trip);
-                        else trips.remove(player.getUniqueId(), trip);
-                    }, () -> trips.remove(player.getUniqueId(), trip)));
+            plugin.withSettings(trip.settings, () -> {
+                if (!current(player, trip)) return;
+                player.setPortalCooldown(trip.cooldown);
+                plugin.debug("Returning " + player.getName() + " to their saved portal.");
+                player.teleportAsync(teleport.getTo(), PlayerTeleportEvent.TeleportCause.NETHER_PORTAL)
+                        .whenComplete((success, failure) -> onPlayer(player, trip, () -> {
+                            if (current(player, trip) && failure == null && Boolean.TRUE.equals(success)) record(player, trip);
+                            else trips.remove(player.getUniqueId(), trip);
+                        }));
+            });
         }, () -> trips.remove(player.getUniqueId(), trip)));
     }
 
     private void finishCancelled(Player player, Trip trip) {
-        player.setPortalCooldown(trip.cooldown);
+        plugin.withSettings(trip.settings, () -> { if (current(player, trip)) player.setPortalCooldown(trip.cooldown); });
         trips.remove(player.getUniqueId(), trip);
+    }
+
+    /** Tracking starts on the destination owner before movement packets can run. */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void arrived(EntityAddToWorldEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        Trip trip = trips.get(player.getUniqueId());
+        if (trip == null || !current(player, trip) || !event.getWorld().getUID().equals(trip.target)) return;
+        PortalRef arrival = localPortal(player.getLocation());
+        if (arrival == null || !Portals.usable(arrival, event.getWorld())) return;
+        trip.arrival = arrival;
+        if (!trip.returning) record(player, trip);
+    }
+
+    private void onPlayer(Player player, Trip trip, Runnable action) {
+        if (Bukkit.isOwnedByCurrentRegion(player)) action.run();
+        else player.getScheduler().run(plugin, task -> action.run(), () -> trips.remove(player.getUniqueId(), trip));
     }
 
     private void watch(Player player, Trip trip, int attempts) {
         player.getScheduler().runDelayed(plugin, task -> {
             if (!current(player, trip)) return;
             if (!player.getWorld().getUID().equals(trip.source.world())) {
-                record(player, trip);
+                // Arrival is captured by EntityAddToWorldEvent, never by a late feet sample.
+                if (trip.arrival == null) trips.remove(player.getUniqueId(), trip);
             } else if (attempts < 200 && player.getTicksLived() - trip.tick <= 200) watch(player, trip, attempts + 1);
             else trips.remove(player.getUniqueId(), trip);
         }, () -> trips.remove(player.getUniqueId(), trip), 1);
@@ -129,19 +157,22 @@ final class FoliaRoutes implements Listener {
         if (from == null || !player.getWorld().getUID().equals(trip.target) || !plugin.activePair(from, player.getWorld())) {
             trips.remove(player.getUniqueId(), trip); return;
         }
-        PortalRef arrival = localPortal(player.getLocation());
-        if (arrival == null || !Portals.usable(arrival, player.getWorld())) { trips.remove(player.getUniqueId(), trip); return; }
+        PortalRef arrival = trip.arrival;
+        if (arrival == null || trip.recording) return;
+        trip.recording = true;
         loadPortal(trip.source, from, 0, 0).whenComplete((usable, error) -> player.getScheduler().run(plugin, task -> {
-            if (current(player, trip) && error == null && Boolean.TRUE.equals(usable)
-                    && arrival.equals(localPortal(player.getLocation())) && plugin.activePair(from, player.getWorld()))
-                plugin.saveLink(player, trip.source, arrival);
+            plugin.withSettings(trip.settings, () -> {
+                if (current(player, trip) && error == null && Boolean.TRUE.equals(usable)
+                        && player.getWorld().getUID().equals(arrival.world()) && plugin.activePair(trip.settings, from, player.getWorld()))
+                    plugin.saveLink(player, trip.source, arrival);
+            });
             trips.remove(player.getUniqueId(), trip);
         }, () -> trips.remove(player.getUniqueId(), trip)));
     }
 
     private boolean current(Player player, Trip trip) {
         if (!plugin.isEnabled() || !player.isOnline() || trips.get(player.getUniqueId()) != trip
-                || trip.generation != plugin.generation()) return false;
+                || trip.settings != plugin.settingsSnapshot()) return false;
         // Inspect the exact contact after dispatch: even a later MONITOR listener
         // may cancel it and independently teleport the player to another portal.
         // Our remembered-return interception deliberately cancels its own contact.
@@ -230,13 +261,15 @@ final class FoliaRoutes implements Listener {
     private static final class Trip {
         final PortalRef source;
         final UUID target;
-        final long generation;
+        final PortalLinkedPlugin.Settings settings;
         final int tick;
         final EntityPortalEnterEvent contact;
         final int cooldown;
-        volatile boolean returning;
-        Trip(PortalRef source, UUID target, long generation, int tick, boolean returning, EntityPortalEnterEvent contact, int cooldown) {
-            this.source = source; this.target = target; this.generation = generation; this.tick = tick; this.returning = returning;
+        final boolean returning;
+        PortalRef arrival;
+        boolean recording;
+        Trip(PortalRef source, UUID target, PortalLinkedPlugin.Settings settings, int tick, boolean returning, EntityPortalEnterEvent contact, int cooldown) {
+            this.source = source; this.target = target; this.settings = settings; this.tick = tick; this.returning = returning;
             this.contact = contact;
             this.cooldown = cooldown;
         }

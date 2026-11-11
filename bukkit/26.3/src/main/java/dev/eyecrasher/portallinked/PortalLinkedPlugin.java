@@ -49,7 +49,8 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         getLogger().info("PortalLinked enabled.");
     }
 
-    @Override public void onDisable() {
+    @Override public synchronized void onDisable() {
+        settings = new Settings(false, settings.excluded, settings.debug, settings.generation + 1);
         contacts.clear();
         pending.clear();
         if (folia != null) folia.clear();
@@ -161,7 +162,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         return true;
     }
 
-    private synchronized boolean loadSettings() {
+    private boolean loadSettings() {
         YamlConfiguration candidate = new YamlConfiguration();
         try {
             candidate.load(new File(getDataFolder(), "config.yml"));
@@ -176,10 +177,12 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
             Set<String> nextExcluded = Set.copyOf(worlds.stream().map(String.class::cast).toList());
             // Publish validated settings together. Failure must not change active
             // behavior or erase an in-flight crossing.
-            settings = new Settings((Boolean) enabledValue, nextExcluded, (Boolean) debugValue, settings.generation + 1);
-            contacts.clear();
-            pending.clear();
-            if (folia != null) folia.clear();
+            synchronized (this) {
+                settings = new Settings((Boolean) enabledValue, nextExcluded, (Boolean) debugValue, settings.generation + 1);
+                contacts.clear();
+                pending.clear();
+                if (folia != null) folia.clear();
+            }
             return true;
         } catch (IOException | InvalidConfigurationException | IllegalArgumentException ex) {
             getLogger().warning("Cannot load config.yml (" + ex.getClass().getSimpleName()
@@ -211,14 +214,24 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
     }
 
     boolean activePair(World from, World to) {
-        Settings active = settings;
+        return activePair(settings, from, to);
+    }
+
+    boolean activePair(Settings active, World from, World to) {
         if (!active.enabled || from == null || to == null
                 || active.excluded.contains(from.getName()) || active.excluded.contains(to.getName())) return false;
         return (from.getEnvironment() == World.Environment.NORMAL && to.getEnvironment() == World.Environment.NETHER)
                 || (from.getEnvironment() == World.Environment.NETHER && to.getEnvironment() == World.Environment.NORMAL);
     }
 
-    long generation() { return settings.generation; }
+    Settings settingsSnapshot() { return settings; }
+
+    /** Linearize the final side effect with reload; never hold this across an async wait. */
+    synchronized boolean withSettings(Settings expected, Runnable action) {
+        if (!isEnabled() || settings != expected || !expected.enabled) return false;
+        action.run();
+        return true;
+    }
 
     void saveLink(Player player, PortalRef source, PortalRef destination) {
         player.getPersistentDataContainer().set(linkKey, PersistentDataType.BYTE_ARRAY,
@@ -232,7 +245,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         if (folia != null) folia.forget(player.getUniqueId());
     }
 
-    private record Settings(boolean enabled, Set<String> excluded, boolean debug, long generation) {}
+    record Settings(boolean enabled, Set<String> excluded, boolean debug, long generation) {}
 
     private record Contact(Location block, int tick) {}
 

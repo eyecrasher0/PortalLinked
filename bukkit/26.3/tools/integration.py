@@ -164,6 +164,11 @@ def main():
         run_logged([java, "-Xms512M", "-Xmx2G", "-XX:ActiveProcessorCount=4",
                     "-Dterminal.jline=false", "-Dterminal.ansi=false", f"-Dportal.phase={phase}",
                     "-jar", "server.jar", "--nogui"], stage, log)
+        # Event dispatch catches plugin exceptions and may let vanilla travel
+        # continue, so a successful fixture result alone must not hide them.
+        if any("Could not pass event" in line and ("to PortalLinked " in line or "to PortalIntegration " in line)
+               for line in log.read_text(errors="replace").splitlines()):
+            raise RuntimeError(f"Plugin event handler failed; inspect {log}")
         result = stage / f"result-{phase}.json"
         if not result.is_file():
             raise RuntimeError(f"No fixture result; inspect {log}")

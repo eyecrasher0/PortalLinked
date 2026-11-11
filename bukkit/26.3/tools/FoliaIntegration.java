@@ -3,6 +3,7 @@
 package dev.eyecrasher.fixture;
 
 import com.google.gson.Gson;
+import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent;
 import com.google.gson.GsonBuilder;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.ChannelFutureListener;
@@ -17,6 +18,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.Connection;
@@ -52,6 +54,11 @@ import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftEntity;
+import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
+import io.papermc.paper.threadedregions.RegionizedServer;
 
 /** Real async portal transitions; each operation runs on the owning region. */
 public final class FoliaIntegration extends JavaPlugin implements Listener {
@@ -62,6 +69,7 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     private boolean cancel;
     private UUID cancelNatural;
     private CompletableFuture<Boolean> foreignTeleport;
+    private final Map<UUID, CompletableFuture<Location>> moveOnArrival = new ConcurrentHashMap<>();
 
     @Override public void onEnable() {
         Bukkit.getPluginManager().registerEvents(this, this);
@@ -85,6 +93,8 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     private CompletableFuture<Void> mechanics() {
         return cancellationRegression(false).thenCompose(v -> cancellationRegression(true))
                 .thenCompose(v -> adjacentFrames())
+                .thenCompose(v -> movementRegression())
+                .thenCompose(v -> reloadRace())
                 .thenCompose(v -> frame(overworld, 832, 64, 0, Axis.X, 4, 5))
                 .thenCompose(v -> frame(overworld, 800, 64, 0, Axis.X, 2, 3))
                 .thenCompose(v -> frame(nether, 100, 64, 0, Axis.Z, 5, 6))
@@ -125,6 +135,90 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                         check(data(one) != null, "Folia persistence pair established"); return null;
                     }))
                     .thenCompose(v -> configuration(one, two))));
+    }
+
+    private CompletableFuture<Void> movementRegression() {
+        return frame(overworld, 27232, 64, 0, Axis.X, 2, 3)
+                .thenCompose(v -> frame(overworld, 27200, 64, 0, Axis.X, 2, 3))
+                .thenCompose(v -> frame(nether, 3400, 64, 0, Axis.Z, 2, 3))
+                .thenCompose(v -> bot("WalkOnArrival", UUID.randomUUID(), overworld, 27232.5, 64, .5))
+                .thenCompose(probe -> movedTrip(probe, nether, false)
+                        .thenCompose(v -> movedTrip(probe, overworld, true)));
+    }
+
+    private CompletableFuture<Void> movedTrip(ServerPlayer probe, World destination, boolean returning) {
+        return player(probe, () -> {
+            byte[] before = data(probe);
+            CompletableFuture<Location> arrival = new CompletableFuture<>();
+            moveOnArrival.put(probe.getUUID(), arrival);
+            trigger(probe);
+            return before;
+        }).thenCompose(before -> moveOnArrival.get(probe.getUUID()).thenCompose(arrival -> delay(probe, 12)
+                .thenCompose(v -> player(probe, () -> {
+                    check(probe.level().getWorld().equals(destination), "moving probe completes actual Folia world change");
+                    check(data(probe) != null && !Arrays.equals(before, data(probe)), returning
+                            ? "remembered return saves pair despite immediate movement before completion"
+                            : "native arrival saves pair despite movement before next tick");
+                    if (returning) check(arrival.getX() >= 27232 && arrival.getX() < 27235, "movement-safe return reaches original portal rather than vanilla neighbor");
+                    moveOnArrival.remove(probe.getUUID());
+                    return arrival;
+                })).thenCompose(point -> relocate(probe, point))));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void moveImmediately(EntityAddToWorldEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        CompletableFuture<Location> promise = moveOnArrival.get(player.getUniqueId());
+        if (promise == null || promise.isDone()) return;
+        Location arrival = player.getLocation();
+        ServerPlayer handle = ((CraftPlayer) player).getHandle();
+        // Finish native entity registration, then move before the next entity tick.
+        RegionizedServer.getInstance().taskQueue.queueTickTaskQueue(handle.level(), arrival.getBlockX() >> 4,
+                arrival.getBlockZ() >> 4, () -> complete(promise, () -> {
+                    handle.snapTo(arrival.getX() + 5, arrival.getY(), arrival.getZ() + 5);
+                    check(player.getLocation().getBlock().getType() != Material.NETHER_PORTAL,
+                            "probe moves before next entity tick without waiting for saved PDC");
+                    return arrival;
+                }));
+    }
+
+    private CompletableFuture<Void> reloadRace() {
+        return frame(overworld, 5632, 64, 0, Axis.X, 2, 3)
+                .thenCompose(v -> frame(overworld, 5600, 64, 0, Axis.X, 2, 3))
+                .thenCompose(v -> frame(nether, 700, 64, 0, Axis.Z, 2, 3))
+                .thenCompose(v -> bot("ReloadRace", UUID.randomUUID(), overworld, 5632.5, 64, .5))
+                .thenCompose(probe -> travel(probe, nether, true).thenCompose(v -> player(probe, () -> {
+                    byte[] before = data(probe);
+                    CraftPlayer original = probe.getBukkitEntity();
+                    ReloadPlayer replacement = new ReloadPlayer(probe);
+                    try {
+                        // Preserve the actual player's scheduler/PDC identity; only
+                        // intercept the read to force the reload interleaving.
+                        for (String name : new String[] {"taskScheduler", "apiScheduler", "persistentDataContainer"}) {
+                            var state = CraftEntity.class.getDeclaredField(name); state.setAccessible(true);
+                            state.set(replacement, state.get(original));
+                        }
+                        var field = Entity.class.getDeclaredField("bukkitEntity"); field.setAccessible(true); field.set(probe, replacement);
+                    } catch (ReflectiveOperationException ex) { throw new AssertionError(ex); }
+                    replacement.beforeLinkRead = () -> writeSettings(false, List.of());
+                    trigger(probe);
+                    return before;
+                })).thenCompose(before -> arrived(probe, overworld, false, before, 0).thenCompose(v -> player(probe, () -> {
+                    check(probe.getX() < 5620, "reload between eligibility and link read keeps native route instead of disabled saved return");
+                    check(Arrays.equals(before, data(probe)), "racing disabling reload preserves existing pair");
+                    return null;
+                }))).thenCompose(v -> global(() -> { writeSettings(true, List.of()); return null; })));
+    }
+
+    public final class ReloadPlayer extends CraftPlayer {
+        Runnable beforeLinkRead;
+        ReloadPlayer(ServerPlayer handle) { super((CraftServer) Bukkit.getServer(), handle); }
+        @Override public CraftPersistentDataContainer getPersistentDataContainer() {
+            Runnable action = beforeLinkRead;
+            beforeLinkRead = null;
+            if (action != null) action.run();
+            return super.getPersistentDataContainer();
+        }
     }
 
     private CompletableFuture<Void> blockedEntry(ServerPlayer probe) {
@@ -248,7 +342,12 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
             Files.writeString(Path.of("plugins/PortalLinked/config.yml"),
                     "enabled: " + enabled + "\nexcluded-worlds: " + new Gson().toJson(excluded) + "\ndebug: false\n");
         } catch (Exception ex) { throw new AssertionError(ex); }
-        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "portallinked reload");
+        if (Bukkit.isGlobalTickThread()) Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "portallinked reload");
+        else {
+            JavaPlugin linked = (JavaPlugin) Bukkit.getPluginManager().getPlugin("PortalLinked");
+            if (!linked.onCommand(Bukkit.getConsoleSender(), linked.getCommand("portallinked"),
+                    "portallinked", new String[] {"reload"})) throw new AssertionError("Reload command failed");
+        }
     }
 
     private CompletableFuture<Void> restart() {
