@@ -5,19 +5,27 @@ package dev.eyecrasher.fixture;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.papermc.paper.configuration.type.number.IntOr;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.logging.Level;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
@@ -35,6 +43,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.data.Orientable;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
@@ -45,17 +54,20 @@ import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.Plugin;
+import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PortalIntegration extends JavaPlugin implements Listener {
     private final List<String> passed = new ArrayList<>();
     private final List<ServerPlayer> bots = new ArrayList<>();
+    private final Map<UUID, List<String>> messages = new HashMap<>();
     private final NamespacedKey key = new NamespacedKey("portallinked", "last_crossing");
     private World overworld, nether;
     private MinecraftServer server;
     private Class<?> portals;
-    private boolean cancelPortal, cancelTeleport, redirectTeleport;
+    private JavaPlugin subject;
+    private boolean cancelPortal, cancelTeleport;
+    private Location redirectTeleport;
     private PlayerPortalEvent lastPortal;
     private Location vanillaOrigin;
     private int vanillaRadius;
@@ -73,12 +85,19 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
             server = ((CraftServer) Bukkit.getServer()).getServer();
             overworld = Bukkit.getWorlds().stream().filter(w -> w.getEnvironment() == World.Environment.NORMAL).findFirst().orElseThrow();
             nether = Bukkit.getWorlds().stream().filter(w -> w.getEnvironment() == World.Environment.NETHER).findFirst().orElseThrow();
-            Plugin subject = Bukkit.getPluginManager().getPlugin("PortalLinked");
+            subject = (JavaPlugin) Bukkit.getPluginManager().getPlugin("PortalLinked");
             check(subject != null && subject.isEnabled(), "plugin enabled on Paper " + Bukkit.getMinecraftVersion());
             check(subject.getDescription().getAuthors().equals(List.of("EyeCrasher")), "EyeCrasher author metadata");
             portals = Class.forName("dev.eyecrasher.portallinked.Portals", true, subject.getClass().getClassLoader());
-            if (System.getProperty("portal.phase", "1").equals("2")) restartChecks();
-            else mechanics();
+            if (System.getProperty("portal.checks", "all").equals("policy-admin")) {
+                ceilingChecks();
+                adminChecks();
+            } else if (System.getProperty("portal.phase", "1").equals("2")) restartChecks();
+            else {
+                mechanics();
+                ceilingChecks();
+                adminChecks();
+            }
         } catch (Throwable ex) {
             failure = ex;
             getLogger().log(Level.SEVERE, "INTEGRATION FAILURE", ex);
@@ -140,9 +159,9 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
         cancelTeleport = false;
         check(one.level().getWorld().equals(nether) && Arrays.equals(beforeCancel, data(one)), "cancelled final teleport changes neither world nor link");
 
-        redirectTeleport = true;
+        redirectTeleport = new Location(overworld, 3000.5, 70, 0.5);
         travel(one);
-        redirectTeleport = false;
+        redirectTeleport = null;
         check(one.level().getWorld().equals(overworld) && one.getX() == 3000.5, "another plugin can redirect final teleport");
         check(Arrays.equals(beforeCancel, data(one)), "arrival outside a portal does not invent a portal pair");
         relocate(one, nether, 100.5, 64, 0.5);
@@ -208,6 +227,179 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
         getLogger().info("RESTART PASS: " + passed.size());
     }
 
+    private void ceilingChecks() throws Exception {
+        var environment = ((CraftWorld) nether).getHandle().paperConfig().environment;
+        var original = environment.netherCeilingVoidDamageHeight;
+        try {
+            int x = 500;
+            for (Axis axis : List.of(Axis.X, Axis.Z)) {
+                environment.netherCeilingVoidDamageHeight = IntOr.Disabled.DISABLED;
+                frame(nether, x, 130, 0, axis, 2, 3);
+                frame(nether, x + 4, 64, 0, axis, 2, 3);
+                frame(overworld, x * 8, 64, 0, axis, 2, 3);
+                Object roof = portal(new Location(nether, x + 0.5, 130, 0.5));
+                check(usable(roof, nether), axis + " roof portal is eligible while ceiling policy is disabled");
+                ServerPlayer player = bot("Roof" + axis, UUID.randomUUID(), nether, x + 0.5, 130, 0.5);
+                travel(player);
+                check(player.level().getWorld().equals(overworld) && data(player) != null,
+                        axis + " departure above the Nether roof saves a return pair");
+                environment.netherCeilingVoidDamageHeight = new IntOr.Disabled(OptionalInt.of(130));
+                check(!usable(roof, nether), axis + " portal at the live ceiling threshold is excluded");
+                environment.netherCeilingVoidDamageHeight = new IntOr.Disabled(OptionalInt.of(131));
+                check(usable(roof, nether), axis + " portal below the live ceiling threshold remains eligible");
+                environment.netherCeilingVoidDamageHeight = new IntOr.Disabled(OptionalInt.of(128));
+                travel(player);
+                check(player.level().getWorld().equals(nether) && player.getY() < 128
+                        && Math.abs(player.getX() - (x + 4.5)) < 3 && vanillaLookup(),
+                        axis + " newly excluded saved roof return falls back to vanilla lower portal");
+                ServerPlayer departing = bot("RoofExit" + axis, UUID.randomUUID(), nether, x + 0.5, 130, 0.5);
+                travel(departing);
+                check(departing.level().getWorld().equals(overworld) && data(departing) == null,
+                        axis + " crossing from an excluded roof portal is not recorded");
+                ServerPlayer arriving = bot("RoofArrival" + axis, UUID.randomUUID(), overworld, x * 8 + 0.5, 64, 0.5);
+                redirectTeleport = new Location(nether, x + 0.5, 130, 0.5);
+                travel(arriving);
+                redirectTeleport = null;
+                check(arriving.level().getWorld().equals(nether) && arriving.getY() == 130 && data(arriving) == null,
+                        axis + " crossing redirected to an excluded roof portal is not recorded");
+                x += 100;
+            }
+        } finally {
+            redirectTeleport = null;
+            environment.netherCeilingVoidDamageHeight = original;
+        }
+    }
+
+    private void adminChecks() throws Exception {
+        frame(overworld, 832, 64, 0, Axis.X, 4, 5);
+        frame(overworld, 800, 64, 0, Axis.X, 2, 3);
+        frame(nether, 100, 64, 0, Axis.Z, 5, 6);
+        ServerPlayer user = bot("ConfigPlayer", UUID.randomUUID(), overworld, 832.5, 64, 0.5);
+        ServerPlayer neighbor = bot("ConfigNeighbor", UUID.randomUUID(), overworld, 800.5, 64, 0.5);
+        ServerPlayer admin = bot("AdminProbe", UUID.randomUUID(), overworld, 832.5, 64, 0.5);
+        Player operator = admin.getBukkitEntity();
+        List<String> logs = new ArrayList<>();
+        Handler recorder = new Handler() {
+            @Override public void publish(LogRecord record) { logs.add(record.getMessage()); }
+            @Override public void flush() {}
+            @Override public void close() {}
+        };
+        subject.getLogger().addHandler(recorder);
+        operator.setOp(true);
+        try {
+            check(subject.getConfig().getBoolean("enabled") && subject.getConfig().getStringList("excluded-worlds").isEmpty()
+                    && !subject.getConfig().getBoolean("debug"), "bundled configuration enables ordinary play with debug off");
+            check(Bukkit.getPluginManager().getPermission("portallinked.admin").getDefault() == PermissionDefault.OP
+                    && operator.hasPermission("portallinked.admin") && !user.getBukkitEntity().hasPermission("portallinked.admin"),
+                    "admin permission defaults to operators and denies ordinary players");
+            travel(user);
+            travel(neighbor);
+            byte[] neighborLink = data(neighbor).clone();
+            byte[] userLink = data(user).clone();
+            for (String action : List.of("status", "forget ConfigNeighbor")) {
+                boolean dispatched = Bukkit.dispatchCommand(user.getBukkitEntity(), "portallinked " + action);
+                check(!dispatched
+                        && Arrays.equals(userLink, data(user)) && Arrays.equals(neighborLink, data(neighbor)),
+                        "ordinary player denied admin command " + action);
+            }
+            writeSettings(false, List.of(), false);
+            check(!Bukkit.dispatchCommand(user.getBukkitEntity(), "portallinked reload"),
+                    "ordinary player denied configuration reload");
+            travel(user);
+            check(user.getX() >= 832 && user.getX() < 837 && lastPortal.getSearchRadius() == 0,
+                    "disk changes and denied reload leave active configuration unchanged");
+            travel(user);
+            check(logs.isEmpty(), "ordinary travel produces no debug logs by default");
+            Bukkit.dispatchCommand(operator, "portallinked status");
+            check(lastMessage(admin).equals("PortalLinked: enabled=true, excluded-worlds=[], debug=false."),
+                    "admin status reports active configuration");
+            Bukkit.dispatchCommand(operator, "portallinked reload");
+            check(lastMessage(admin).equals("PortalLinked configuration reloaded."), "operator can reload configuration");
+            Bukkit.dispatchCommand(operator, "portallinked status");
+            check(lastMessage(admin).equals("PortalLinked: enabled=false, excluded-worlds=[], debug=false."),
+                    "reload applies configuration from disk");
+            vanillaRoundTrip(user, "disabled mode");
+            for (World excluded : List.of(overworld, nether)) {
+                writeSettings(true, List.of(excluded.getName()), false);
+                Bukkit.dispatchCommand(operator, "portallinked reload");
+                vanillaRoundTrip(user, "excluded world " + excluded.getName());
+            }
+            writeSettings(true, List.of(overworld.getName().toUpperCase(Locale.ROOT)), true);
+            Bukkit.dispatchCommand(operator, "portallinked reload");
+            travel(user);
+            check(user.getX() >= 832 && user.getX() < 837 && lastPortal.getSearchRadius() == 0,
+                    "world exclusions use exact case-sensitive names");
+            check(logs.contains("Returning ConfigPlayer to their saved portal.")
+                    && logs.contains("Saved portal link for ConfigPlayer."), "debug reload enables concise routing and recording logs");
+            writeSettings(true, List.of(), false);
+            Bukkit.dispatchCommand(operator, "portallinked reload");
+            logs.clear();
+            travel(user);
+            check(logs.isEmpty(), "reload disables debug logs again");
+            Bukkit.dispatchCommand(operator, "portallinked forget ConfigNeigh");
+            check(lastMessage(admin).equals("Specify an online player: /portallinked forget <player>.")
+                    && Arrays.equals(neighborLink, data(neighbor)), "forget requires an exact online player name");
+            Bukkit.dispatchCommand(operator, "portallinked forget ConfigPlayer");
+            check(data(user) == null && Arrays.equals(neighborLink, data(neighbor))
+                    && lastMessage(admin).equals("Forgot portal link for ConfigPlayer."),
+                    "admin forget removes only the selected player's saved pair");
+            travel(user);
+            check(user.getX() >= 800 && user.getX() < 803 && vanillaLookup(), "forgotten return uses vanilla lookup and records a new journey");
+            travel(admin);
+            check(data(admin) != null, "operator also has an ordinary player-specific journey");
+            Bukkit.dispatchCommand(operator, "portallinked forget");
+            check(data(admin) == null && Arrays.equals(neighborLink, data(neighbor)), "forget without a player resets only the sender");
+            byte[] retained = data(user).clone();
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "portallinked forget ConfigNeighbor");
+            check(data(neighbor) == null && Arrays.equals(retained, data(user)), "console can forget one named online player");
+            relocate(user, overworld, 832.5, 64, 0.5);
+            travel(user);
+            TeleportTransition inFlight = destination(user);
+            Bukkit.dispatchCommand(operator, "portallinked forget ConfigPlayer");
+            check(inFlight != null && user.teleport(inFlight) != null && data(user) == null,
+                    "forget clears an in-flight crossing so arrival cannot recreate the forgotten pair");
+            relocate(user, nether, 100.5, 64, 0.5);
+            inFlight = destination(user);
+            writeSettings(false, List.of(), false);
+            Bukkit.dispatchCommand(operator, "portallinked reload");
+            check(inFlight != null && user.teleport(inFlight) != null && data(user) == null,
+                    "reload clears an in-flight crossing before disabled arrival recording");
+        } finally {
+            subject.getLogger().removeHandler(recorder);
+            operator.setOp(false);
+            writeSettings(true, List.of(), false);
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "portallinked reload");
+        }
+    }
+
+    private void vanillaRoundTrip(ServerPlayer player, String mode) {
+        byte[] saved = data(player).clone();
+        travel(player);
+        check(player.level().getWorld().equals(overworld) && player.getX() >= 800 && player.getX() < 803
+                && vanillaLookup() && Arrays.equals(saved, data(player)), mode + " skips return routing and recording toward Overworld");
+        travel(player);
+        check(player.level().getWorld().equals(nether) && vanillaLookup() && Arrays.equals(saved, data(player)),
+                mode + " skips return routing and recording toward Nether");
+    }
+
+    private void writeSettings(boolean enabled, List<String> excludedWorlds, boolean debug) throws Exception {
+        var file = subject.getDataFolder().toPath().resolve("config.yml").toFile();
+        var config = YamlConfiguration.loadConfiguration(file);
+        config.set("enabled", enabled);
+        config.set("excluded-worlds", excludedWorlds);
+        config.set("debug", debug);
+        config.save(file);
+    }
+
+    private String lastMessage(ServerPlayer player) {
+        return messages.getOrDefault(player.getUUID(), List.of()).getLast();
+    }
+
+    private boolean vanillaLookup() {
+        return vanillaOrigin.equals(lastPortal.getTo()) && vanillaRadius == lastPortal.getSearchRadius()
+                && vanillaCreate == lastPortal.getCanCreatePortal();
+    }
+
     private ServerPlayer bot(String name, UUID id, World world, double x, double y, double z) {
         GameProfile profile = new GameProfile(id, name);
         ServerLevel level = ((CraftWorld) world).getHandle();
@@ -216,13 +408,25 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
         connection.channel = new EmbeddedChannel();
         connection.address = new InetSocketAddress("127.0.0.1", 54321);
         player.connection = new ServerGamePacketListenerImpl(server, connection, player, CommonListenerCookie.createInitial(profile, false)) {
-            @Override public void send(Packet<?> packet) {}
-            @Override public void send(Packet<?> packet, ChannelFutureListener listener) {}
+            @Override public void send(Packet<?> packet) {
+                if (packet instanceof ClientboundSystemChatPacket chat)
+                    messages.computeIfAbsent(id, ignored -> new ArrayList<>()).add(chat.content().getString());
+            }
+            @Override public void send(Packet<?> packet, ChannelFutureListener listener) { send(packet); }
         };
         player.snapTo(x, y, z);
         player.getBukkitEntity().setInvulnerable(true);
         server.getPlayerList().getPlayers().add(player);
         server.getPlayerList().getPlayersByUUID().put(id, player);
+        try {
+            var field = net.minecraft.server.players.PlayerList.class.getDeclaredField("playersByName");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            Map<String, ServerPlayer> byName = (Map<String, ServerPlayer>) field.get(server.getPlayerList());
+            byName.put(name.toLowerCase(Locale.ROOT), player);
+        } catch (ReflectiveOperationException ex) {
+            throw new AssertionError("Cannot register native fixture player", ex);
+        }
         level.addNewPlayer(player);
         bots.add(player);
         return player;
@@ -253,6 +457,12 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
         var method = portals.getDeclaredMethod("touching", Location.class);
         method.setAccessible(true);
         return ((Optional<?>) method.invoke(null, location)).orElse(null);
+    }
+
+    private boolean usable(Object portal, World world) throws Exception {
+        var method = portals.getDeclaredMethod("usable", portal.getClass(), World.class);
+        method.setAccessible(true);
+        return (boolean) method.invoke(null, portal, world);
     }
 
     private void frame(World world, int x, int y, int z, Axis axis, int width, int height) {
@@ -293,7 +503,7 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
     public void protectionTeleport(PlayerTeleportEvent event) {
         if (event instanceof PlayerPortalEvent || event.getCause() != PlayerTeleportEvent.TeleportCause.NETHER_PORTAL) return;
         if (cancelTeleport) event.setCancelled(true);
-        if (redirectTeleport) event.setTo(new Location(overworld, 3000.5, 70, 0.5));
+        if (redirectTeleport != null) event.setTo(redirectTeleport.clone());
     }
 
     private void check(boolean condition, String description) {

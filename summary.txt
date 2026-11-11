@@ -1,1 +1,1 @@
-PortalLinked remembers each player's portal pair, returning them to their original portal when they retrace a Nether trip. New routes retain vanilla 1:8 scaling and portal generation.
+PortalLinked remembers each player's portal pair, returning them to their original portal when they retrace a Nether trip. New routes retain vanilla 1:8 scaling and portal generation. Optional admin configuration controls enabled worlds and debug logging, with commands to reload settings, check status and forget a player's link.

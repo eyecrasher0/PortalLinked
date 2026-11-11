@@ -3,6 +3,7 @@
 package dev.eyecrasher.portallinked;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 import org.bukkit.Axis;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -82,7 +83,23 @@ final class Portals {
         Location farCorner = origin.clone().add(saved.axis() == Axis.X ? saved.width() - 1 : 0,
                 saved.height() - 1, saved.axis() == Axis.Z ? saved.width() - 1 : 0);
         return world.getWorldBorder().isInside(origin) && world.getWorldBorder().isInside(farCorner)
+                && paperAllows(saved, world)
                 && at(world.getBlockAt(saved.x(), saved.y(), saved.z())).filter(saved::equals).isPresent();
+    }
+
+    private static boolean paperAllows(PortalRef saved, World world) {
+        try {
+            Object level = world.getClass().getMethod("getHandle").invoke(world);
+            Object nether = Class.forName("net.minecraft.world.level.dimension.LevelStem").getField("NETHER").get(null);
+            if (!nether.equals(level.getClass().getMethod("getTypeKey").invoke(level))) return true;
+            Object config = level.getClass().getMethod("paperConfig").invoke(level);
+            Object environment = config.getClass().getField("environment").get(config);
+            Object ceiling = environment.getClass().getField("netherCeilingVoidDamageHeight").get(environment);
+            OptionalInt height = (OptionalInt) ceiling.getClass().getMethod("value").invoke(ceiling);
+            return height.isEmpty() || saved.y() < height.getAsInt();
+        } catch (ReflectiveOperationException ex) {
+            return false;
+        }
     }
 
     private static boolean portal(World world, int x, int y, int z, Axis axis) {

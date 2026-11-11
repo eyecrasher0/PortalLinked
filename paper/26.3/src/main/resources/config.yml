@@ -1,0 +1,6 @@
+# Remember each player's return portal. Apply changes with /portallinked reload.
+enabled: true
+# Exact, case-sensitive world names. Either endpoint excludes the whole crossing.
+excluded-worlds: []
+# Log saved links, remembered returns and unavailable return portals.
+debug: false

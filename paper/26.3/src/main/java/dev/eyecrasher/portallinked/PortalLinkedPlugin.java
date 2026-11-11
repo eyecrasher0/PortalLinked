@@ -5,12 +5,15 @@ package dev.eyecrasher.portallinked;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.PortalType;
 import org.bukkit.World;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -27,11 +30,16 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
     private final Map<UUID, Contact> contacts = new HashMap<>();
     private final Map<UUID, Crossing> pending = new HashMap<>();
     private NamespacedKey linkKey;
+    private boolean linkingEnabled;
+    private Set<String> excludedWorlds = Set.of();
+    private boolean debug;
 
     @Override public void onEnable() {
         linkKey = new NamespacedKey(this, "last_crossing");
+        saveDefaultConfig();
+        loadSettings();
         getServer().getPluginManager().registerEvents(this, this);
-        getLogger().info("Povratni put kroz Nether portale je uključen.");
+        getLogger().info("PortalLinked enabled.");
     }
 
     @Override public void onDisable() {
@@ -41,7 +49,8 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void enter(EntityPortalEnterEvent event) {
-        if (event.getPortalType() == PortalType.NETHER && event.getEntity() instanceof Player player)
+        if (linkingEnabled && !excludedWorlds.contains(event.getLocation().getWorld().getName())
+                && event.getPortalType() == PortalType.NETHER && event.getEntity() instanceof Player player)
             contacts.put(player.getUniqueId(), new Contact(event.getLocation(), Bukkit.getCurrentTick()));
     }
 
@@ -50,7 +59,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         UUID id = event.getPlayer().getUniqueId();
         pending.remove(id);
         if (event.getCause() != PlayerTeleportEvent.TeleportCause.NETHER_PORTAL
-                || !normalNetherPair(event.getFrom().getWorld(), event.getTo().getWorld())) return;
+                || !activePair(event.getFrom().getWorld(), event.getTo().getWorld())) return;
         PortalRef source = source(event.getPlayer(), event.getFrom()).orElse(null);
         if (source == null) return;
         Crossing crossing = new Crossing(source, event);
@@ -63,13 +72,17 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
                 .flatMap(link -> link.returnPortal(source, target.getUID()));
         if (saved.isEmpty()) return;
         PortalRef destination = saved.get();
-        if (!Portals.usable(destination, target)) return;
+        if (!Portals.usable(destination, target)) {
+            debug("Saved return unavailable for " + event.getPlayer().getName() + "; using vanilla lookup.");
+            return;
+        }
 
         // Paper still performs the portal transition, orientation, collision handling
         // and protection events. Only its search origin/radius change for a return.
         event.setTo(destination.searchOrigin(target));
         event.setSearchRadius(0);
         event.setCanCreatePortal(false);
+        debug("Returning " + event.getPlayer().getName() + " to their saved portal.");
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -81,7 +94,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         if (event.isCancelled() || crossing.portal.isCancelled()
                 || event.getCause() != PlayerTeleportEvent.TeleportCause.NETHER_PORTAL
                 || !crossing.source.world().equals(event.getFrom().getWorld().getUID())
-                || !normalNetherPair(event.getFrom().getWorld(), event.getTo().getWorld())) {
+                || !activePair(event.getFrom().getWorld(), event.getTo().getWorld())) {
             pending.remove(id, crossing);
             return;
         }
@@ -96,19 +109,62 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         if (crossing == null || crossing.portal.isCancelled() || crossing.teleport == null
                 || crossing.teleport.isCancelled() || !crossing.source.world().equals(event.getFrom().getUID())
                 || !player.getWorld().equals(crossing.teleport.getTo().getWorld())
-                || !normalNetherPair(event.getFrom(), player.getWorld())) return;
+                || !activePair(event.getFrom(), player.getWorld())) return;
         // ChangedWorld is the success confirmation. PlayerPortalEvent#getTo is
         // only the pre-search position and is never used as an arrival portal.
         Portals.touching(player.getLocation()).ifPresent(destination -> {
-            if (!Portals.usable(crossing.source, event.getFrom())) return;
+            if (!Portals.usable(crossing.source, event.getFrom())
+                    || !Portals.usable(destination, player.getWorld())) return;
             PortalLinked link = new PortalLinked(crossing.source, destination);
             player.getPersistentDataContainer().set(linkKey, PersistentDataType.BYTE_ARRAY, LinkCodec.encode(link));
+            debug("Saved portal link for " + player.getName() + ".");
         });
     }
 
     @EventHandler public void quit(PlayerQuitEvent event) {
         contacts.remove(event.getPlayer().getUniqueId());
         pending.remove(event.getPlayer().getUniqueId());
+    }
+
+    @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.hasPermission("portallinked.admin")) {
+            sender.sendMessage("You do not have permission to use PortalLinked admin commands.");
+            return true;
+        }
+        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
+            loadSettings();
+            sender.sendMessage("PortalLinked configuration reloaded.");
+        } else if (args.length == 1 && args[0].equalsIgnoreCase("status")) {
+            sender.sendMessage("PortalLinked: enabled=" + linkingEnabled + ", excluded-worlds="
+                    + excludedWorlds + ", debug=" + debug + ".");
+        } else if (args.length >= 1 && args.length <= 2 && args[0].equalsIgnoreCase("forget")) {
+            Player target = args.length == 2 ? Bukkit.getPlayerExact(args[1])
+                    : sender instanceof Player player ? player : null;
+            if (target == null) {
+                sender.sendMessage("Specify an online player: /portallinked forget <player>.");
+            } else {
+                target.getPersistentDataContainer().remove(linkKey);
+                contacts.remove(target.getUniqueId());
+                pending.remove(target.getUniqueId());
+                sender.sendMessage("Forgot portal link for " + target.getName() + ".");
+            }
+        } else {
+            sender.sendMessage("Usage: /portallinked <reload|status|forget> [online-player]");
+        }
+        return true;
+    }
+
+    private void loadSettings() {
+        reloadConfig();
+        linkingEnabled = getConfig().getBoolean("enabled", true);
+        excludedWorlds = Set.copyOf(getConfig().getStringList("excluded-worlds"));
+        debug = getConfig().getBoolean("debug", false);
+        contacts.clear();
+        pending.clear();
+    }
+
+    private void debug(String message) {
+        if (debug) getLogger().info(message);
     }
 
     private Optional<PortalRef> source(Player player, Location from) {
@@ -129,8 +185,9 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         return link;
     }
 
-    private static boolean normalNetherPair(World from, World to) {
-        if (from == null || to == null) return false;
+    private boolean activePair(World from, World to) {
+        if (!linkingEnabled || from == null || to == null
+                || excludedWorlds.contains(from.getName()) || excludedWorlds.contains(to.getName())) return false;
         return (from.getEnvironment() == World.Environment.NORMAL && to.getEnvironment() == World.Environment.NETHER)
                 || (from.getEnvironment() == World.Environment.NETHER && to.getEnvironment() == World.Environment.NORMAL);
     }
