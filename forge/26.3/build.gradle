@@ -1,0 +1,41 @@
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle' version '7.0.17'
+}
+
+group = 'dev.eyecrasher.portallinked'
+version = '1.1.0+26.3'
+base { archivesName = 'portallinked-forge' }
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
+minecraft { runs { register('server') { args '--nogui' } } }
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
+dependencies { implementation minecraft.dependency('net.minecraftforge:forge:26.3-66.1.5') }
+sourceSets.main {
+    java.srcDir '../../mod-common/26.3/src/main/java'
+    resources.srcDir '../../mod-common/26.3/src/main/resources'
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+}
+processResources {
+    filesMatching('META-INF/mods.toml') { expand version: project.version }
+    from('../../branding/icon.png')
+}
+jar { manifest { attributes 'MixinConfigs': 'portallinked.mixins.json' } }
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+}
+
+apply from: '../../gradle/mod-integration.gradle'

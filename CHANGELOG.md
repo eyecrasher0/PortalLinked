@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 — Minecraft 26.3
+
+- Adds Spigot, Purpur and Folia support in a single Bukkit plugin JAR.
+- Adds server-only Fabric, NeoForge and Forge mod JARs; Fabric API is not required.
+- Keeps Bukkit 1.0.0 saved links and configuration compatible.
+- Adds a Folia async return handler with region-owned portal checks, entity-owned
+  player data updates, cancellation and vanilla fallback.
+- Shares mod player-save data and JSON configuration across the three loaders.
+- Adds native server/restart verification for every supported platform.
+- Documents admin settings, installation choices and source/build requirements.
+
 ## 1.0.0 — 2026-11-11
 
 - Reject incomplete or invalid configuration; see [administration](README.md#administration).

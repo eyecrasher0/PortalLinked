@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "portallinked",
+  "version": "${version}",
+  "name": "PortalLinked",
+  "description": "Personal Nether return routes while preserving normal portal travel.",
+  "authors": ["EyeCrasher"],
+  "contact": {
+    "homepage": "https://modrinth.com/plugin/portallinked",
+    "sources": "https://github.com/eyecrasher0/PortalLinked",
+    "issues": "https://github.com/eyecrasher0/PortalLinked/issues"
+  },
+  "license": "GPL-3.0-only",
+  "icon": "icon.png",
+  "environment": "server",
+  "mixins": ["portallinked.mixins.json"],
+  "depends": {"fabricloader": ">=0.20.1", "minecraft": "26.3", "java": ">=25"}
+}

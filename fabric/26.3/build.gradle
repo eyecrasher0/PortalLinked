@@ -1,0 +1,37 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.17.21'
+    id 'java'
+}
+
+group = 'dev.eyecrasher.portallinked'
+version = '1.1.0+26.3'
+base { archivesName = 'portallinked-fabric' }
+
+repositories { mavenCentral() }
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
+dependencies {
+    minecraft 'com.mojang:minecraft:26.3'
+    implementation 'net.fabricmc:fabric-loader:0.20.1'
+}
+sourceSets.main {
+    java.srcDir '../../mod-common/26.3/src/main/java'
+    resources.srcDir '../../mod-common/26.3/src/main/resources'
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+}
+processResources {
+    filesMatching('fabric.mod.json') { expand version: project.version }
+    from('../../branding/icon.png')
+}
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+}
+
+apply from: '../../gradle/mod-integration.gradle'
