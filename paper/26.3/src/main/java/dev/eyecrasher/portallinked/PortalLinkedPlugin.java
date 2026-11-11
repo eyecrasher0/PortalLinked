@@ -82,8 +82,8 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
             return;
         }
 
-        // Paper still performs the portal transition, orientation, collision handling
-        // and protection events. Only its search origin/radius change for a return.
+        // Paper still handles orientation, collisions and protection events.
+        // A remembered return must not create a replacement portal.
         event.setTo(destination.searchOrigin(target));
         event.setSearchRadius(0);
         event.setCanCreatePortal(false);

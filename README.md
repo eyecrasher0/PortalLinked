@@ -97,7 +97,7 @@ The test suite covers routing and persisted-data validation. The native fixture
 uses player and portal transitions on Paper 26.3 build 244, including a full
 shutdown/restart, live Nether ceiling changes, configuration reload, admin
 permissions, invalid configuration and forgetting individual player links.
-No external Bedrock clients were connected during the release checks.
+No external Java or Bedrock clients were connected during the release checks.
 
 ## License
 
