@@ -7,6 +7,8 @@
 - Keeps Bukkit 1.0.0 saved links and configuration compatible.
 - Adds a Folia async return handler with region-owned portal checks, entity-owned
   player data updates, cancellation and vanilla fallback.
+- Preserves late portal-entry cancellations, exact adjacent source frames,
+  native player cooldowns and Nether-entry restrictions on Folia.
 - Shares mod player-save data and JSON configuration across the three loaders.
 - Adds native server/restart verification for every supported platform.
 - Documents admin settings, installation choices and source/build requirements.

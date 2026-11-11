@@ -32,6 +32,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.PortalProcessor;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.NetherPortalBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -46,7 +47,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityPortalEnterEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -57,6 +60,8 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     private static final UUID PERSIST = UUID.fromString("731e37df-d67b-4bf2-a9bc-123456789003");
     private World overworld, nether;
     private boolean cancel;
+    private UUID cancelNatural;
+    private CompletableFuture<Boolean> foreignTeleport;
 
     @Override public void onEnable() {
         Bukkit.getPluginManager().registerEvents(this, this);
@@ -78,7 +83,9 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     }
 
     private CompletableFuture<Void> mechanics() {
-        return frame(overworld, 832, 64, 0, Axis.X, 4, 5)
+        return cancellationRegression(false).thenCompose(v -> cancellationRegression(true))
+                .thenCompose(v -> adjacentFrames())
+                .thenCompose(v -> frame(overworld, 832, 64, 0, Axis.X, 4, 5))
                 .thenCompose(v -> frame(overworld, 800, 64, 0, Axis.X, 2, 3))
                 .thenCompose(v -> frame(nether, 100, 64, 0, Axis.Z, 5, 6))
                 .thenCompose(v -> bot("FoliaOne", PERSIST, overworld, 832.5, 64, 0.5))
@@ -91,6 +98,7 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                     .thenCompose(v -> player(one, () -> {
                         check(one.getX() >= 832 && one.getX() < 837, "Folia shared return reaches first player's original portal"); return null;
                     }))
+                    .thenCompose(v -> blockedEntry(one))
                     .thenCompose(v -> travel(two, overworld, true))
                     .thenCompose(v -> player(two, () -> {
                         check(two.getX() >= 800 && two.getX() < 803, "Folia shared return reaches second player's own portal"); return null;
@@ -100,6 +108,7 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                     .thenCompose(v -> delay(one, 12))
                     .thenCompose(v -> player(one, () -> {
                         check(one.level().getWorld().equals(nether) && data(one) != null, "cancelled remembered return preserves player and link");
+                        check(one.getBukkitEntity().getPortalCooldown() <= one.getDimensionChangingDelay(), "cancelled remembered return uses native player cooldown");
                         cancel = false; return null;
                     }))
                     .thenCompose(v -> region(overworld, 832, 0, () -> { overworld.getBlockAt(832, 64, 0).setType(Material.AIR, false); return null; }))
@@ -116,6 +125,63 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                         check(data(one) != null, "Folia persistence pair established"); return null;
                     }))
                     .thenCompose(v -> configuration(one, two))));
+    }
+
+    private CompletableFuture<Void> blockedEntry(ServerPlayer probe) {
+        return player(probe, () -> {
+            byte[] before = data(probe);
+            probe.level().getGameRules().set(GameRules.ALLOW_ENTERING_NETHER_USING_PORTALS, false, null);
+            trigger(probe);
+            return before;
+        }).thenCompose(before -> delay(probe, 4).thenCompose(v -> player(probe, () -> {
+            check(probe.level().getWorld().equals(overworld), "remembered Folia return honors native Nether-entry gamerule");
+            check(Arrays.equals(before, data(probe)), "denied Nether entry preserves existing saved pair");
+            probe.level().getGameRules().set(GameRules.ALLOW_ENTERING_NETHER_USING_PORTALS, true, null);
+            return null;
+        })));
+    }
+
+    private CompletableFuture<Void> cancellationRegression(boolean existingPair) {
+        int source = existingPair ? 2080 : 1920;
+        int destination = source / 8;
+        return frame(overworld, source, 64, 0, Axis.X, 2, 3)
+                .thenCompose(v -> frame(nether, destination, 64, 0, Axis.Z, 2, 3))
+                .thenCompose(v -> bot(existingPair ? "CancelSaved" : "CancelFresh", UUID.randomUUID(), overworld, source + .5, 64, .5))
+                .thenCompose(probe -> {
+                    CompletableFuture<Void> seed = existingPair
+                            ? travel(probe, nether, true).thenCompose(v -> relocate(probe, new Location(overworld, source + .5, 64, .5)))
+                            : CompletableFuture.completedFuture(null);
+                    return seed.thenCompose(v -> player(probe, () -> {
+                        byte[] before = data(probe);
+                        check(existingPair == (before != null), "cancellation probe starts with expected saved-pair state");
+                        cancelNatural = probe.getUUID();
+                        foreignTeleport = new CompletableFuture<>();
+                        trigger(probe);
+                        return before;
+                    })).thenCompose(before -> foreignTeleport.thenCompose(success -> {
+                        if (!success) throw new AssertionError("Independent PLUGIN teleport failed");
+                        return delay(probe, 10).thenCompose(v -> player(probe, () -> {
+                            check(probe.level().getWorld().equals(nether), "independent PLUGIN teleport reaches target portal");
+                            check(Arrays.equals(before, data(probe)), existingPair
+                                    ? "cancelled contact plus PLUGIN teleport preserves existing pair"
+                                    : "cancelled contact plus PLUGIN teleport does not invent a pair");
+                            cancelNatural = null;
+                            return null;
+                        }));
+                    }));
+                });
+    }
+
+    private CompletableFuture<Void> adjacentFrames() {
+        return frame(overworld, 24000, 64, 0, Axis.X, 2, 3)
+                .thenCompose(v -> frame(overworld, 24000, 64, 1, Axis.X, 2, 3))
+                .thenCompose(v -> frame(nether, 3000, 64, 0, Axis.Z, 2, 3))
+                .thenCompose(v -> bot("AdjacentFrames", UUID.randomUUID(), overworld, 24000.5, 64, 1.5))
+                .thenCompose(probe -> travel(probe, nether, true).thenCompose(v -> travel(probe, overworld, true))
+                        .thenCompose(v -> player(probe, () -> {
+                            check(probe.getZ() >= 1 && probe.getZ() < 2, "adjacent parallel frames preserve exact contacted source frame");
+                            return null;
+                        })));
     }
 
     private CompletableFuture<Void> configuration(ServerPlayer one, ServerPlayer two) {
@@ -202,6 +268,18 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void cancel(PlayerPortalEvent event) { if (cancel) event.setCancelled(true); }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void foreignRedirect(EntityPortalEnterEvent event) {
+        if (!(event.getEntity() instanceof Player player) || !player.getUniqueId().equals(cancelNatural)) return;
+        event.setCancelled(true);
+        double x = player.getLocation().getX() / 8;
+        player.teleportAsync(new Location(nether, x, 64, .5), PlayerTeleportEvent.TeleportCause.PLUGIN)
+                .whenComplete((success, error) -> {
+                    if (error != null) foreignTeleport.completeExceptionally(error);
+                    else foreignTeleport.complete(success);
+                });
+    }
 
     private CompletableFuture<Void> travel(ServerPlayer player, World target, boolean requireLink) {
         return player(player, () -> { byte[] before = data(player); trigger(player); return before; })

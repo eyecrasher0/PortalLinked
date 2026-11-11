@@ -49,18 +49,22 @@ final class FoliaRoutes implements Listener {
             event.setCancelled(true);
             return;
         }
-        if (player.getPortalCooldown() > 0 || !ready(player)) return;
+        if (player.getPortalCooldown() > 0) return;
+        int cooldown = readyCooldown(player);
+        if (cooldown < 0) return;
         World from = player.getWorld();
         World target = Bukkit.getWorlds().stream().filter(world -> world.getEnvironment()
                 == (from.getEnvironment() == World.Environment.NETHER ? World.Environment.NORMAL : World.Environment.NETHER))
                 .findFirst().orElse(null);
-        if (target == null || !plugin.activePair(from, target)) return;
-        PortalRef source = localPortal(event.getLocation());
+        if (target == null || !plugin.activePair(from, target) || !nativeAllows(player, target)) return;
+        Location contact = event.getLocation();
+        PortalRef source = Bukkit.isOwnedByCurrentRegion(contact, 2)
+                ? Portals.at(contact.getBlock()).orElse(null) : null;
         if (source == null || !Portals.usable(source, from)) return;
         if (ongoing != null && ongoing.source.equals(source) && ongoing.generation == plugin.generation()) return;
         PortalRef saved = plugin.readLink(player).flatMap(pair -> pair.returnPortal(source, target.getUID())).orElse(null);
         boolean bypass = source.equals(vanillaFallback.remove(player.getUniqueId()));
-        Trip trip = new Trip(source, target.getUID(), plugin.generation(), player.getTicksLived(), saved != null && !bypass);
+        Trip trip = new Trip(source, target.getUID(), plugin.generation(), player.getTicksLived(), saved != null && !bypass, event, cooldown);
         trips.put(player.getUniqueId(), trip);
         if (!trip.returning || player.isInsideVehicle() || !player.getPassengers().isEmpty()) {
             trip.returning = false;
@@ -95,7 +99,7 @@ final class FoliaRoutes implements Listener {
             if (teleport.isCancelled() || teleport.getTo() == null || !current(player, trip)) {
                 finishCancelled(player, trip); return;
             }
-            player.setPortalCooldown(300);
+            player.setPortalCooldown(trip.cooldown);
             plugin.debug("Returning " + player.getName() + " to their saved portal.");
             player.teleportAsync(teleport.getTo(), PlayerTeleportEvent.TeleportCause.NETHER_PORTAL)
                     .whenComplete((success, failure) -> player.getScheduler().run(plugin, completion -> {
@@ -106,7 +110,7 @@ final class FoliaRoutes implements Listener {
     }
 
     private void finishCancelled(Player player, Trip trip) {
-        player.setPortalCooldown(300);
+        player.setPortalCooldown(trip.cooldown);
         trips.remove(player.getUniqueId(), trip);
     }
 
@@ -136,8 +140,16 @@ final class FoliaRoutes implements Listener {
     }
 
     private boolean current(Player player, Trip trip) {
-        return plugin.isEnabled() && player.isOnline() && trips.get(player.getUniqueId()) == trip
-                && trip.generation == plugin.generation();
+        if (!plugin.isEnabled() || !player.isOnline() || trips.get(player.getUniqueId()) != trip
+                || trip.generation != plugin.generation()) return false;
+        // Inspect the exact contact after dispatch: even a later MONITOR listener
+        // may cancel it and independently teleport the player to another portal.
+        // Our remembered-return interception deliberately cancels its own contact.
+        if (!trip.returning && trip.contact.isCancelled()) {
+            trips.remove(player.getUniqueId(), trip);
+            return false;
+        }
+        return true;
     }
 
     private PortalRef localPortal(Location location) {
@@ -172,7 +184,7 @@ final class FoliaRoutes implements Listener {
     }
 
     /** Read the native progress and delay instead of inventing a second portal timer. */
-    private boolean ready(Player player) {
+    private int readyCooldown(Player player) {
         try {
             Object handle = player.getClass().getMethod("getHandle").invoke(player);
             Class<?> entityClass = Class.forName("net.minecraft.world.entity.Entity");
@@ -183,7 +195,19 @@ final class FoliaRoutes implements Listener {
             Object block = Class.forName("net.minecraft.world.level.block.Blocks").getField("NETHER_PORTAL").get(null);
             int delay = (int) block.getClass().getMethod("getPortalTransitionTime",
                     Class.forName("net.minecraft.server.level.ServerLevel"), entityClass).invoke(block, level, handle);
-            return elapsed >= delay;
+            return elapsed >= delay ? (int) handle.getClass().getMethod("getDimensionChangingDelay").invoke(handle) : -1;
+        } catch (ReflectiveOperationException ex) { return -1; }
+    }
+
+    private boolean nativeAllows(Player player, World target) {
+        try {
+            Object handle = player.getClass().getMethod("getHandle").invoke(player);
+            Object source = player.getWorld().getClass().getMethod("getHandle").invoke(player.getWorld());
+            Object destination = target.getClass().getMethod("getHandle").invoke(target);
+            return (boolean) source.getClass().getMethod("isAllowedToEnterPortal", Class.forName("net.minecraft.world.level.Level"))
+                    .invoke(source, destination)
+                    && (boolean) handle.getClass().getMethod("canPortalAsync", Class.forName("net.minecraft.server.level.ServerLevel"), boolean.class)
+                    .invoke(handle, destination, true);
         } catch (ReflectiveOperationException ex) { return false; }
     }
 
@@ -208,9 +232,13 @@ final class FoliaRoutes implements Listener {
         final UUID target;
         final long generation;
         final int tick;
+        final EntityPortalEnterEvent contact;
+        final int cooldown;
         volatile boolean returning;
-        Trip(PortalRef source, UUID target, long generation, int tick, boolean returning) {
+        Trip(PortalRef source, UUID target, long generation, int tick, boolean returning, EntityPortalEnterEvent contact, int cooldown) {
             this.source = source; this.target = target; this.generation = generation; this.tick = tick; this.returning = returning;
+            this.contact = contact;
+            this.cooldown = cooldown;
         }
     }
 }
