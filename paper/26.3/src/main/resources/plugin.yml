@@ -1,0 +1,7 @@
+name: PortalLinked
+version: '${version}'
+main: dev.eyecrasher.portallinked.PortalLinkedPlugin
+author: EyeCrasher
+website: https://github.com/eyecrasher0/PortalLinked
+api-version: '26.3'
+description: Remembers each player's Nether portal pair while preserving vanilla travel.
