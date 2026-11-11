@@ -48,8 +48,6 @@ def main():
     parser.add_argument("--accept-eula", action="store_true",
                         help="accept https://www.minecraft.net/eula for disposable test servers")
     parser.add_argument("--cache", type=Path, default=MODULE / "build/integration-cache")
-    parser.add_argument("--checks", choices=["all", "policy-admin"], default="all",
-                        help="run all native checks or only live portal policy and admin regressions")
     parser.add_argument("--java", default=str(Path(os.environ["JAVA_HOME"]) / "bin/java")
                         if "JAVA_HOME" in os.environ else "java")
     args = parser.parse_args()
@@ -111,11 +109,10 @@ def main():
     (stage / "spigot.yml").write_text("settings:\n  timeout-time: 300\n")
     phases = []
     print(f"Paper 26.3-244 test directory: {stage}", flush=True)
-    for phase in ([1, 2] if args.checks == "all" else [1]):
+    for phase in [1, 2]:
         log = stage / f"console-{phase}.log"
         run_logged([java, "-Xms512M", "-Xmx2G", "-XX:ActiveProcessorCount=4",
                     "-Dterminal.jline=false", "-Dterminal.ansi=false", f"-Dportal.phase={phase}",
-                    f"-Dportal.checks={args.checks}",
                     "-jar", "paper.jar", "--nogui"], stage, log)
         result = stage / f"result-{phase}.json"
         if not result.is_file():
@@ -127,7 +124,7 @@ def main():
         print(f"Phase {phase}: {len(outcome['checks'])} checks passed", flush=True)
     if any(hashlib.sha256(path.read_bytes()).hexdigest() != digest for path in [jar, copied]):
         raise RuntimeError("Release artifact changed during integration")
-    report = {"jar_sha256": digest, "paper": "26.3-244", "checks": args.checks, "phases": phases,
+    report = {"jar_sha256": digest, "paper": "26.3-244", "phases": phases,
               "passed": sum(len(phase["checks"]) for phase in phases), "stage": str(stage)}
     (work / "result.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({"passed": report["passed"], "jar_sha256": digest}), flush=True)

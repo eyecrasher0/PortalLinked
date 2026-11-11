@@ -89,10 +89,7 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
             check(subject != null && subject.isEnabled(), "plugin enabled on Paper " + Bukkit.getMinecraftVersion());
             check(subject.getDescription().getAuthors().equals(List.of("EyeCrasher")), "EyeCrasher author metadata");
             portals = Class.forName("dev.eyecrasher.portallinked.Portals", true, subject.getClass().getClassLoader());
-            if (System.getProperty("portal.checks", "all").equals("policy-admin")) {
-                ceilingChecks();
-                adminChecks();
-            } else if (System.getProperty("portal.phase", "1").equals("2")) restartChecks();
+            if (System.getProperty("portal.phase", "1").equals("2")) restartChecks();
             else {
                 mechanics();
                 ceilingChecks();
@@ -319,6 +316,28 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
             check(lastMessage(admin).equals("PortalLinked: enabled=false, excluded-worlds=[], debug=false."),
                     "reload applies configuration from disk");
             vanillaRoundTrip(user, "disabled mode");
+            Bukkit.dispatchCommand(operator, "portallinked status");
+            String beforeInvalid = lastMessage(admin);
+            byte[] savedBeforeInvalid = data(user).clone();
+            for (String invalid : List.of(
+                    "enabled: false\nexcluded-worlds: [world_nether\n",
+                    "enabled: 'true'\n",
+                    "debug: 'false'\n",
+                    "excluded-worlds: world_nether\n",
+                    "excluded-worlds: [42]\n",
+                    "excluded-worlds: ['']\n")) {
+                Files.writeString(subject.getDataFolder().toPath().resolve("config.yml"), invalid);
+                Bukkit.dispatchCommand(operator, "portallinked reload");
+                check(lastMessage(admin).startsWith("PortalLinked configuration could not be reloaded."),
+                        "invalid configuration reports reload failure");
+                Bukkit.dispatchCommand(operator, "portallinked status");
+                check(lastMessage(admin).equals(beforeInvalid) && Arrays.equals(savedBeforeInvalid, data(user)),
+                        "invalid YAML or setting type preserves active settings and saved links");
+            }
+            writeSettings(false, List.of(), false);
+            Bukkit.dispatchCommand(operator, "portallinked reload");
+            check(lastMessage(admin).equals("PortalLinked configuration reloaded."),
+                    "valid reload recovers after invalid configuration");
             for (World excluded : List.of(overworld, nether)) {
                 writeSettings(true, List.of(excluded.getName()), false);
                 Bukkit.dispatchCommand(operator, "portallinked reload");
@@ -384,7 +403,7 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
 
     private void writeSettings(boolean enabled, List<String> excludedWorlds, boolean debug) throws Exception {
         var file = subject.getDataFolder().toPath().resolve("config.yml").toFile();
-        var config = YamlConfiguration.loadConfiguration(file);
+        var config = new YamlConfiguration();
         config.set("enabled", enabled);
         config.set("excluded-worlds", excludedWorlds);
         config.set("debug", debug);

@@ -58,6 +58,9 @@ commands require `portallinked.admin`, granted to operators by default:
 
 Reloading clears pending crossings. Forgetting also clears the selected player's
 pending crossing, so an arrival already in progress cannot recreate that link.
+If YAML syntax or a setting's type is invalid, reload reports failure and retains
+the previous active settings. Fix the file and reload again. If the initial
+configuration is invalid, linking stays disabled until a valid reload succeeds.
 
 ## Installation
 
@@ -87,9 +90,7 @@ in the JAR and used on the project pages.
 The test suite covers routing and persisted-data validation. The native fixture
 uses player and portal transitions on Paper 26.3 build 244, including a full
 shutdown/restart, live Nether ceiling changes, configuration reload, admin
-permissions and forgetting individual player links. To run only the ceiling
-and admin checks after building, use
-`python3 tools/integration.py --accept-eula --checks policy-admin`.
+permissions, invalid configuration and forgetting individual player links.
 No external Bedrock clients were connected during the release checks.
 
 ## License

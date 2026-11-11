@@ -2,7 +2,10 @@
 // Copyright (C) 2026 EyeCrasher
 package dev.eyecrasher.portallinked;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -14,6 +17,8 @@ import org.bukkit.PortalType;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.InvalidConfigurationException;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -37,7 +42,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
     @Override public void onEnable() {
         linkKey = new NamespacedKey(this, "last_crossing");
         saveDefaultConfig();
-        loadSettings();
+        if (!loadSettings()) getLogger().warning("Portal linking remains disabled until the configuration is fixed and reloaded.");
         getServer().getPluginManager().registerEvents(this, this);
         getLogger().info("PortalLinked enabled.");
     }
@@ -132,8 +137,8 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
             return true;
         }
         if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
-            loadSettings();
-            sender.sendMessage("PortalLinked configuration reloaded.");
+            sender.sendMessage(loadSettings() ? "PortalLinked configuration reloaded."
+                    : "PortalLinked configuration could not be reloaded. Previous settings are unchanged; check the server log.");
         } else if (args.length == 1 && args[0].equalsIgnoreCase("status")) {
             sender.sendMessage("PortalLinked: enabled=" + linkingEnabled + ", excluded-worlds="
                     + excludedWorlds + ", debug=" + debug + ".");
@@ -154,13 +159,32 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         return true;
     }
 
-    private void loadSettings() {
-        reloadConfig();
-        linkingEnabled = getConfig().getBoolean("enabled", true);
-        excludedWorlds = Set.copyOf(getConfig().getStringList("excluded-worlds"));
-        debug = getConfig().getBoolean("debug", false);
-        contacts.clear();
-        pending.clear();
+    private boolean loadSettings() {
+        YamlConfiguration candidate = new YamlConfiguration();
+        try {
+            candidate.load(new File(getDataFolder(), "config.yml"));
+            Object enabledValue = candidate.get("enabled", true);
+            Object worldsValue = candidate.get("excluded-worlds", List.of());
+            Object debugValue = candidate.get("debug", false);
+            if (!(enabledValue instanceof Boolean)) throw new IllegalArgumentException("enabled must be true or false");
+            if (!(debugValue instanceof Boolean)) throw new IllegalArgumentException("debug must be true or false");
+            if (!(worldsValue instanceof List<?> worlds)
+                    || worlds.stream().anyMatch(value -> !(value instanceof String name) || name.isBlank()))
+                throw new IllegalArgumentException("excluded-worlds must be a list of non-empty world names");
+            Set<String> nextExcluded = Set.copyOf(worlds.stream().map(String.class::cast).toList());
+            // Publish validated settings together. Failure must not change active
+            // behavior or erase an in-flight crossing.
+            linkingEnabled = (Boolean) enabledValue;
+            excludedWorlds = nextExcluded;
+            debug = (Boolean) debugValue;
+            contacts.clear();
+            pending.clear();
+            return true;
+        } catch (IOException | InvalidConfigurationException | IllegalArgumentException ex) {
+            getLogger().warning("Cannot load config.yml (" + ex.getClass().getSimpleName()
+                    + "). Check YAML syntax and the enabled/excluded-worlds/debug types; previous settings are unchanged.");
+            return false;
+        }
     }
 
     private void debug(String message) {
