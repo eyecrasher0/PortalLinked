@@ -1,0 +1,17 @@
+name: PortalLinked
+version: '${version}'
+main: dev.eyecrasher.portallinked.PortalLinkedPlugin
+author: EyeCrasher
+website: https://github.com/eyecrasher0/PortalLinked
+api-version: '26.3'
+description: Remembers each player's Nether portal pair while preserving vanilla travel.
+commands:
+  portallinked:
+    description: Manage PortalLinked configuration and player links.
+    usage: /portallinked <reload|status|forget> [online-player]
+    permission: portallinked.admin
+    permission-message: You do not have permission to use PortalLinked admin commands.
+permissions:
+  portallinked.admin:
+    description: Manage PortalLinked configuration and player links.
+    default: op

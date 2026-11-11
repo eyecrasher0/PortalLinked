@@ -1,0 +1,42 @@
+plugins {
+    id 'java'
+}
+
+group = 'dev.eyecrasher.portallinked'
+version = '1.0.0+26.3'
+base { archivesName = 'portallinked-paper' }
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
+    withSourcesJar()
+}
+
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:26.3.build.244-stable'
+    testImplementation 'io.papermc.paper:paper-api:26.3.build.244-stable'
+    testImplementation platform('org.junit:junit-bom:5.13.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+}
+
+tasks.named('processResources') {
+    filesMatching('plugin.yml') { expand(version: project.version) }
+}
+
+tasks.named('test') { useJUnitPlatform() }
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+}
