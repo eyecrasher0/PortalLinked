@@ -29,7 +29,9 @@ final class FoliaNative {
             Object level = player.getWorld().getClass().getMethod("getHandle").invoke(player.getWorld());
             int delay = (int) block.getClass().getMethod("getPortalTransitionTime",
                     Class.forName("net.minecraft.server.level.ServerLevel"), entityType).invoke(block, level, entity);
-            if (process == null) {
+            if (process == null || !(boolean) process.getClass().getMethod("isSamePortal",
+                    Class.forName("net.minecraft.world.level.block.Portal")).invoke(process, block)) {
+                if (delay != 0) return false;
                 Class<?> positionType = Class.forName("net.minecraft.core.BlockPos");
                 Object position = positionType.getConstructor(int.class, int.class, int.class)
                         .newInstance(contact.getBlockX(), contact.getBlockY(), contact.getBlockZ());
@@ -38,6 +40,7 @@ final class FoliaNative {
                 processField.set(entity, process);
             }
             Field time = process.getClass().getDeclaredField("portalTime"); time.setAccessible(true);
+            if (time.getInt(process) < delay - 1) return false;
             // Native code compares the old value before incrementing it. -1 also
             // holds zero-delay creative portals for this contact only.
             time.setInt(process, delay - 1);

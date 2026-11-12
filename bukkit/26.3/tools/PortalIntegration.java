@@ -34,6 +34,11 @@ import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.NetherPortalBlock;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
+import net.minecraft.world.entity.PortalProcessor;
+import net.minecraft.world.entity.Pose;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Axis;
@@ -89,6 +94,11 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
             check(subject.getDescription().getAuthors().equals(List.of("EyeCrasher")), "EyeCrasher author metadata");
             portals = Class.forName("dev.eyecrasher.portallinked.Portals", true, subject.getClass().getClassLoader());
             if (System.getProperty("portallinked.scenario", "").equals("blocked-return")) blockedReturns();
+            else if (System.getProperty("portallinked.scenario", "").equals("departure-contact")) {
+                departureContacts();
+                adjacentArrival(Axis.X);
+                adjacentArrival(Axis.Z);
+            }
             else if (System.getProperty("portal.phase", "1").equals("2")) restartChecks();
             else {
                 mechanics();
@@ -113,6 +123,7 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
 
     private void mechanics() throws Exception {
         blockedReturns();
+        departureContacts();
         adjacentArrival(Axis.X);
         adjacentArrival(Axis.Z);
         frame(overworld, 832, 64, 0, Axis.X, 4, 5);
@@ -524,7 +535,68 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
 
     private TeleportTransition destination(ServerPlayer player) {
         lastPortal = null;
+        player.getBukkitEntity().setPortalCooldown(0);
+        PortalProcessor process = new PortalProcessor((NetherPortalBlock) Blocks.NETHER_PORTAL, player.blockPosition());
+        process.setAsInsidePortalThisTick(false);
+        nativeField(Entity.class, player, "portalProcess", process);
+        inside(player, player.blockPosition());
         return ((NetherPortalBlock) Blocks.NETHER_PORTAL).getPortalDestination(player.level(), player, player.blockPosition());
+    }
+
+    private void departureContacts() throws Exception {
+        for (Axis axis : new Axis[] {Axis.X, Axis.Z}) for (boolean homeNether : new boolean[] {false, true}) {
+            boolean x = axis == Axis.X;
+            World home = homeNether ? nether : overworld, shared = homeNether ? overworld : nether;
+            int base = homeNether ? 24004 : 168032, target = homeNether ? base * 8 : base / 8;
+            String label = "axis=" + axis + " homeNether=" + homeNether;
+            for (World world : new World[] {home, shared}) {
+                int start = world == home ? base : target;
+                for (int along = start - 3; along <= start + 7; along++) for (int across = -3; across <= 4; across++)
+                    for (int y = 64; y <= 74; y++) world.getBlockAt(x ? along : across, y, x ? across : along).setType(Material.AIR, false);
+            }
+            frame(home, x ? base : 0, 64, x ? 0 : base, axis, 4, 8);
+            frame(home, x ? base : 1, 64, x ? 1 : base, axis, 4, 8, false);
+            frame(shared, x ? target : 0, 64, x ? 0 : target, axis, 4, 8);
+            ServerPlayer probe = bot("Departure" + axis + homeNether, UUID.randomUUID(), home,
+                    x ? base + 2 : .9, 64, x ? .9 : base + 2);
+            probe.getBukkitEntity().getAttribute(Attribute.SCALE).setBaseValue(2);
+            probe.setPose(Pose.CROUCHING); probe.refreshDimensions();
+            var bounds = probe.getBoundingBox();
+            check(bounds.getXsize() > 1.1 && bounds.getYsize() >= 2.9 && bounds.getYsize() < 3.1
+                    && (x ? bounds.minZ < 1 && bounds.maxZ > 1 : bounds.minX < 1 && bounds.maxX > 1),
+                    "crouching scaled body overlaps both departure planes: " + label);
+            check(home.getBlockAt(x ? base : 0, 64, x ? 0 : base).getType() == Material.NETHER_PORTAL
+                    && home.getBlockAt(x ? base : 1, 64, x ? 1 : base).getType() == Material.NETHER_PORTAL,
+                    "both departure frames coexist: " + label);
+            BlockPos first = new BlockPos(x ? base + 2 : 0, 64, x ? 0 : base + 2);
+            BlockPos second = new BlockPos(x ? base + 2 : 1, 64, x ? 1 : base + 2);
+            PortalProcessor process = new PortalProcessor((NetherPortalBlock) Blocks.NETHER_PORTAL, first);
+            process.setAsInsidePortalThisTick(false);
+            nativeField(PortalProcessor.class, process, "portalTime",
+                    ((NetherPortalBlock) Blocks.NETHER_PORTAL).getPortalTransitionTime(probe.level(), probe));
+            nativeField(Entity.class, probe, "portalProcess", process);
+            probe.getBukkitEntity().setPortalCooldown(0);
+            inside(probe, first); inside(probe, second);
+            check(process.getEntryPosition().equals(first), "native processor retains first accepted departure: " + label);
+            var handle = Entity.class.getDeclaredMethod("handlePortal"); handle.setAccessible(true); handle.invoke(probe);
+            check(probe.level().getWorld().equals(shared) && data(probe) != null,
+                    "native overlapping departure completes and saves: " + label);
+            check(java.nio.ByteBuffer.wrap(data(probe)).getInt(x ? 25 : 17) == 0,
+                    "saved departure matches native first contact: " + label);
+            travel(probe);
+            check(probe.level().getWorld().equals(home) && Math.abs((x ? probe.getZ() : probe.getX()) - .5) < .1,
+                    "remembered round trip reaches native departure plane: " + label);
+        }
+    }
+
+    private void inside(ServerPlayer player, BlockPos contact) {
+        try {
+            var inside = NetherPortalBlock.class.getDeclaredMethod("entityInside", BlockState.class, net.minecraft.world.level.Level.class,
+                    BlockPos.class, Entity.class, InsideBlockEffectApplier.class, boolean.class);
+            inside.setAccessible(true);
+            inside.invoke(Blocks.NETHER_PORTAL, player.level().getBlockState(contact), player.level(), contact,
+                    player, InsideBlockEffectApplier.NOOP, true);
+        } catch (ReflectiveOperationException ex) { throw new AssertionError(ex); }
     }
 
     private void adjacentArrival(Axis axis) {

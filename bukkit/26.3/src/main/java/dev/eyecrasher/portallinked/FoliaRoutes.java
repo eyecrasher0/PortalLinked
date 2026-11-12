@@ -52,28 +52,28 @@ final class FoliaRoutes implements Listener {
             if (ongoing != null) trips.remove(player.getUniqueId(), ongoing);
             return;
         }
+        Location contact = Portals.departure(player, event.getLocation()).orElse(null);
+        PortalRef source = contact != null && Bukkit.isOwnedByCurrentRegion(contact, 2)
+                ? Portals.at(contact.getBlock()).orElse(null) : null;
         if (ongoing != null && current(player, ongoing)) ongoing.contact = event;
         if (ongoing != null && ongoing.returning && current(player, ongoing)) {
-            if (Portals.intersects(ongoing.source, player)) {
+            if (ongoing.source.equals(source)) {
                 plugin.withSettings(ongoing.settings, () -> {
                     if (!current(player, ongoing)) return;
-                    if (!FoliaNative.hold(player, event.getLocation())) trips.remove(player.getUniqueId(), ongoing);
+                    if (!FoliaNative.hold(player, contact)) trips.remove(player.getUniqueId(), ongoing);
                 });
                 return;
             }
             trips.remove(player.getUniqueId(), ongoing);
         }
         if (player.getPortalCooldown() > 0) return;
-        int cooldown = readyCooldown(player);
+        int cooldown = readyCooldown(player, false);
         if (cooldown < 0) return;
         World from = player.getWorld();
         World defaultTarget = Bukkit.getWorlds().stream().filter(world -> world.getEnvironment()
                 == (from.getEnvironment() == World.Environment.NETHER ? World.Environment.NORMAL : World.Environment.NETHER))
                 .findFirst().orElse(null);
         if (defaultTarget == null) return;
-        Location contact = event.getLocation();
-        PortalRef source = Bukkit.isOwnedByCurrentRegion(contact, 2)
-                ? Portals.at(contact.getBlock()).orElse(null) : null;
         if (source == null || !Portals.usable(source, from)) return;
         if (ongoing != null && ongoing.source.equals(source) && ongoing.settings == active && current(player, ongoing)) return;
         PortalLinked link = plugin.readLink(player).orElse(null);
@@ -90,10 +90,8 @@ final class FoliaRoutes implements Listener {
             if (returning && !FoliaNative.hold(player, contact)) trips.remove(player.getUniqueId(), trip);
         })) return;
         if (trips.get(player.getUniqueId()) != trip) return;
-        if (!returning) {
-            watch(player, trip, 0);
-            return;
-        }
+        watch(player, trip, 0);
+        if (!returning) return;
         Location fromPosition = player.getLocation();
         double width = player.getWidth(), height = player.getHeight();
         loadPortal(saved, target, width, height).whenComplete((usable, error) -> player.getScheduler().run(plugin, task -> {
@@ -102,7 +100,6 @@ final class FoliaRoutes implements Listener {
                 fallback(player, trip);
                 return;
             }
-            if (!Portals.intersects(source, player)) { trips.remove(player.getUniqueId(), trip); return; }
             Location destination = saved.searchOrigin(target);
             destination.add(saved.axis() == Axis.X ? (saved.width() - 1) / 2.0 : 0, 0,
                     saved.axis() == Axis.Z ? (saved.width() - 1) / 2.0 : 0);
@@ -165,13 +162,13 @@ final class FoliaRoutes implements Listener {
 
     private void watch(Player player, Trip trip, int attempts) {
         player.getScheduler().runDelayed(plugin, task -> {
-            if (!current(player, trip)) return;
+            if (!current(player, trip) || trip.started) return;
             if (!player.getWorld().getUID().equals(trip.source.world())) {
                 // Arrival is captured by EntityAddToWorldEvent, never by a late feet sample.
                 if (trip.arrival == null) trips.remove(player.getUniqueId(), trip);
             } else if (attempts < 200 && player.getTicksLived() - trip.tick <= 200) watch(player, trip, attempts + 1);
             else trips.remove(player.getUniqueId(), trip);
-        }, () -> trips.remove(player.getUniqueId(), trip), 1);
+        }, () -> { if (!trip.started) trips.remove(player.getUniqueId(), trip); }, 1);
     }
 
     private void record(Player player, Trip trip) {
@@ -197,6 +194,11 @@ final class FoliaRoutes implements Listener {
         // Inspect the exact contact after dispatch: even a later MONITOR listener
         // may cancel it and independently teleport the player to another portal.
         if (trip.contact.isCancelled()) {
+            trips.remove(player.getUniqueId(), trip);
+            return false;
+        }
+        if (trip.returning && !trip.started && (player.getPortalCooldown() > 0
+                || !Portals.intersects(trip.source, player) || readyCooldown(player, true) < 0)) {
             trips.remove(player.getUniqueId(), trip);
             return false;
         }
@@ -238,18 +240,22 @@ final class FoliaRoutes implements Listener {
     }
 
     /** Read the native progress and delay instead of inventing a second portal timer. */
-    private int readyCooldown(Player player) {
+    private int readyCooldown(Player player, boolean held) {
         try {
             Object handle = player.getClass().getMethod("getHandle").invoke(player);
             Class<?> entityClass = Class.forName("net.minecraft.world.entity.Entity");
             Field processField = entityClass.getDeclaredField("portalProcess"); processField.setAccessible(true);
             Object process = processField.get(handle);
-            int elapsed = process == null ? 0 : (int) process.getClass().getMethod("getPortalTime").invoke(process);
             Object level = player.getWorld().getClass().getMethod("getHandle").invoke(player.getWorld());
             Object block = Class.forName("net.minecraft.world.level.block.Blocks").getField("NETHER_PORTAL").get(null);
+            if (process != null && !(boolean) process.getClass().getMethod("isSamePortal",
+                    Class.forName("net.minecraft.world.level.block.Portal")).invoke(process, block)) return -1;
+            int elapsed = process == null ? 0 : (int) process.getClass().getMethod("getPortalTime").invoke(process);
             int delay = (int) block.getClass().getMethod("getPortalTransitionTime",
                     Class.forName("net.minecraft.server.level.ServerLevel"), entityClass).invoke(block, level, handle);
-            return elapsed >= delay ? (int) handle.getClass().getMethod("getDimensionChangingDelay").invoke(handle) : -1;
+            if (held && delay != 0 && process == null) return -1;
+            return elapsed >= delay - (held ? 1 : 0)
+                    ? (int) handle.getClass().getMethod("getDimensionChangingDelay").invoke(handle) : -1;
         } catch (ReflectiveOperationException ex) { return -1; }
     }
 

@@ -21,6 +21,8 @@ import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.Cancellable;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPortalEnterEvent;
@@ -56,12 +58,15 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         if (folia != null) folia.clear();
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR)
     public void enter(EntityPortalEnterEvent event) {
         if (settings.enabled && !settings.excluded.contains(event.getLocation().getWorld().getName())
                 && event.getLocation().getBlock().getType() == Material.NETHER_PORTAL
-                && event.getEntity() instanceof Player player)
-            contacts.put(player.getUniqueId(), new Contact(event.getLocation().clone(), player.getTicksLived()));
+                && event.getEntity() instanceof Player player) {
+            contacts.remove(player.getUniqueId());
+            Portals.departure(player, event.getLocation()).ifPresent(block -> contacts.put(player.getUniqueId(),
+                    new Contact(block, player.getTicksLived(), event)));
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -70,7 +75,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         pending.remove(id);
         if (event.getCause() != PlayerTeleportEvent.TeleportCause.NETHER_PORTAL || event.getTo() == null
                 || !activePair(event.getFrom().getWorld(), event.getTo().getWorld())) return;
-        PortalRef source = source(event.getPlayer(), event.getFrom()).orElse(null);
+        PortalRef source = source(event.getPlayer()).orElse(null);
         if (source == null) return;
         Crossing crossing = new Crossing(source, event);
         pending.put(id, crossing);
@@ -195,15 +200,12 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         if (settings.debug) getLogger().info(message);
     }
 
-    private Optional<PortalRef> source(Player player, Location from) {
+    private Optional<PortalRef> source(Player player) {
         Contact contact = contacts.remove(player.getUniqueId());
-        if (contact != null && player.getTicksLived() - contact.tick <= 2
-                && contact.block.getWorld().equals(from.getWorld())
-                && contact.block.distanceSquared(from) < 9) {
-            Optional<PortalRef> portal = Portals.at(contact.block.getBlock());
-            if (portal.isPresent()) return portal;
-        }
-        return Portals.touching(player);
+        if (contact == null || (contact.event instanceof Cancellable cancellable && cancellable.isCancelled())
+                || player.getTicksLived() - contact.tick > 2
+                || !contact.block.getWorld().equals(player.getWorld())) return Optional.empty();
+        return Portals.at(contact.block.getBlock()).filter(portal -> Portals.intersects(portal, player));
     }
 
     Optional<PortalLinked> readLink(Player player) {
@@ -247,7 +249,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
 
     record Settings(boolean enabled, Set<String> excluded, boolean debug, long generation) {}
 
-    private record Contact(Location block, int tick) {}
+    private record Contact(Location block, int tick, Event event) {}
 
     private static final class Crossing {
         final PortalRef source;

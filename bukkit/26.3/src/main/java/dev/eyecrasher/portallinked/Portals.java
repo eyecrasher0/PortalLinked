@@ -18,6 +18,25 @@ final class Portals {
     private static final boolean PAPER_CONFIG = hasPaperConfig();
     private Portals() {}
 
+    static Optional<Location> departure(Player player, Location contact) {
+        try {
+            Object entity = player.getClass().getMethod("getHandle").invoke(player);
+            var field = Class.forName("net.minecraft.world.entity.Entity").getDeclaredField("portalProcess");
+            field.setAccessible(true);
+            Object process = field.get(entity);
+            Object block = Class.forName("net.minecraft.world.level.block.Blocks").getField("NETHER_PORTAL").get(null);
+            if (process == null || !(boolean) process.getClass().getMethod("isSamePortal",
+                    Class.forName("net.minecraft.world.level.block.Portal")).invoke(process, block)
+                    || !(boolean) process.getClass().getMethod("isInsidePortalThisTick").invoke(process))
+                return Optional.of(contact.clone());
+            Object entry = process.getClass().getMethod("getEntryPosition").invoke(process);
+            return Optional.of(new Location(contact.getWorld(),
+                    (int) entry.getClass().getMethod("getX").invoke(entry),
+                    (int) entry.getClass().getMethod("getY").invoke(entry),
+                    (int) entry.getClass().getMethod("getZ").invoke(entry)));
+        } catch (ReflectiveOperationException ex) { return Optional.empty(); }
+    }
+
     static Optional<PortalRef> touching(Location feet) {
         World world = feet.getWorld();
         if (world == null) return Optional.empty();
