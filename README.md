@@ -56,7 +56,8 @@ Remembered returns validate the destination on its owning region and move the
 player with `teleportAsync`. They use a clear position in the original portal
 and emit cancellable player portal/teleport events. If that position is blocked,
 the server uses its native lookup. Mounted players retain native Folia routing.
-Player data is changed only on the owning entity's scheduler.
+Player data is changed only on the owning region/entity thread, including native
+arrival and teleport completion callbacks.
 
 ## Administration
 

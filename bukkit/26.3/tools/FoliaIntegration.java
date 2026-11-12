@@ -185,6 +185,12 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
         return frame(overworld, x ? base : 8, 64, x ? 8 : base, axis, 2, 3)
                 .thenCompose(v -> frame(nether, x ? target : 0, 64, x ? 0 : target, axis, 2, 3))
                 .thenCompose(v -> frame(nether, x ? target : 1, 64, x ? 1 : target, axis, 2, 3))
+                .thenCompose(v -> region(nether, x ? target : 0, x ? 0 : target, () -> {
+                    check(nether.getBlockAt(x ? target : 0, 64, x ? 0 : target).getType() == Material.NETHER_PORTAL
+                            && nether.getBlockAt(x ? target : 1, 64, x ? 1 : target).getType() == Material.NETHER_PORTAL,
+                            "both Folia arrival planes coexist before native transition on axis " + axis);
+                    return null;
+                }))
                 .thenCompose(v -> bot("Arrival" + axis.name(), UUID.randomUUID(), overworld, x ? base + .5 : 8.1,
                         64, x ? 8.1 : base + .5))
                 .thenCompose(probe -> travel(probe, nether, true)

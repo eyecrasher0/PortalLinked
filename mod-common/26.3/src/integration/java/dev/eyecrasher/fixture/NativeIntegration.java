@@ -36,6 +36,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -151,17 +152,30 @@ public final class NativeIntegration {
     private void adjacentArrival(Direction.Axis axis) throws Exception {
         boolean x = axis == Direction.Axis.X;
         int base = x ? 120032 : 128032, target = base / 8 - 4;
-        frame(overworld, x ? base : 8, 64, x ? 8 : base, axis, 2, 3);
-        frame(nether, x ? target : 0, 64, x ? 0 : target, axis, 2, 3);
-        frame(nether, x ? target : 1, 64, x ? 1 : target, axis, 2, 3);
-        ServerPlayer player = bot("Arrival" + axis.name(), UUID.randomUUID(), overworld, x ? base + .5 : 8.1,
-                64, x ? 8.1 : base + .5);
+        frame(overworld, x ? base : 8, 64, x ? 8 : base, axis, 4, 8);
+        frame(overworld, x ? base - 32 : 12, 64, x ? 12 : base - 32, axis, 4, 8);
+        frame(nether, x ? target : 0, 64, x ? 0 : target, axis, 4, 8);
+        frame(nether, x ? target : 1, 64, x ? 1 : target, axis, 4, 8);
+        check(nether.getBlockState(new BlockPos(x ? target : 0, 64, x ? 0 : target)).is(Blocks.NETHER_PORTAL)
+                && nether.getBlockState(new BlockPos(x ? target : 1, 64, x ? 1 : target)).is(Blocks.NETHER_PORTAL),
+                "both native arrival planes coexist on axis " + axis);
+        ServerPlayer player = bot("Arrival" + axis.name(), UUID.randomUUID(), overworld, x ? base + 2 : 8.1,
+                64, x ? 8.1 : base + 2);
+        player.getAttribute(Attributes.SCALE).setBaseValue(4);
+        player.refreshDimensions();
+        player.snapTo(x ? base + 2 : 8.1, 64, x ? 8.1 : base + 2);
+        check(player.getBoundingBox().getXsize() > 2 && player.getBoundingBox().getYsize() > 7,
+                "native arrival probe has actual scale4 bounds on axis " + axis);
         travel(player);
         check(player.level() == nether && (x ? player.getZ() : player.getX()) >= 1
                 && (x ? player.getZ() : player.getX()) < 2, "native exit selects adjacent plane 1 on axis " + axis);
         check((x ? pair(player).arrival().z() : pair(player).arrival().x()) == 1,
                 "arrival identity follows feet instead of overlapping neighboring frame on axis " + axis);
-        relocate(player, nether, x ? target + .5 : 1.5, 64, x ? 1.5 : target + .5);
+        check((x ? player.getBoundingBox().minZ : player.getBoundingBox().minX) < 1,
+                "large player body overlaps the neighboring arrival plane on axis " + axis);
+        player.getAttribute(Attributes.SCALE).setBaseValue(1);
+        player.refreshDimensions();
+        relocate(player, nether, x ? target + 2 : 1.5, 64, x ? 1.5 : target + 2);
         travel(player);
         check(player.level() == overworld && Math.abs((x ? player.getX() : player.getZ()) - base) < 3,
                 "centered adjacent arrival returns to original base on axis " + axis);

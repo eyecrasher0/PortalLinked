@@ -529,7 +529,10 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
         int base = x ? 120032 : 128032, target = base / 8 - 4;
         frame(overworld, x ? base : 8, 64, x ? 8 : base, axis, 2, 3);
         frame(nether, x ? target : 0, 64, x ? 0 : target, axis, 2, 3);
-        frame(nether, x ? target : 1, 64, x ? 1 : target, axis, 2, 3);
+        frame(nether, x ? target : 1, 64, x ? 1 : target, axis, 2, 3, false);
+        check(nether.getBlockAt(x ? target : 0, 64, x ? 0 : target).getType() == Material.NETHER_PORTAL
+                && nether.getBlockAt(x ? target : 1, 64, x ? 1 : target).getType() == Material.NETHER_PORTAL,
+                "both adjacent portal planes coexist before native arrival on axis " + axis);
         ServerPlayer probe = bot("Arrival" + axis.name(), UUID.randomUUID(), overworld,
                 x ? base + .5 : 8.1, 64, x ? 8.1 : base + .5);
         travel(probe);
@@ -584,9 +587,13 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
     }
 
     private void frame(World world, int x, int y, int z, Axis axis, int width, int height) {
+        frame(world, x, y, z, axis, width, height, true);
+    }
+
+    private void frame(World world, int x, int y, int z, Axis axis, int width, int height, boolean clear) {
         int dx = axis == Axis.X ? 1 : 0, dz = axis == Axis.Z ? 1 : 0;
         for (int a = -1; a <= width; a++) for (int b = -1; b <= height; b++) {
-            for (int side = -1; side <= 1; side++) {
+            for (int side = -1; clear && side <= 1; side++) {
                 int bx = x + dx * a + dz * side, bz = z + dz * a + dx * side;
                 world.getBlockAt(bx, y + b, bz).setType(Material.AIR, false);
             }
