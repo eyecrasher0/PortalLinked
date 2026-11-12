@@ -35,8 +35,10 @@ public abstract class NetherPortalMixin {
             boolean nether, WorldBorder border, CallbackInfoReturnable<TeleportTransition> callback) {
         if (!(entity instanceof ServerPlayer player)) return;
         NativePortal destination = PortalLinkedServer.rememberedReturn(player, target);
-        if (destination != null) callback.setReturnValue(NetherPortalAccess.portallinked$transition(
-                entity, entered, destination.rectangle(), target,
-                TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET)));
+        if (destination == null) return;
+        TeleportTransition transition = NetherPortalAccess.portallinked$transition(entity, entered, destination.rectangle(), target,
+                TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET));
+        if (target.noCollision(player, player.getBoundingBox().move(transition.position().subtract(player.position()))))
+            callback.setReturnValue(transition);
     }
 }

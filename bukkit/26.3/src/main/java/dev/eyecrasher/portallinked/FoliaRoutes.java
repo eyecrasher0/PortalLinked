@@ -42,16 +42,21 @@ final class FoliaRoutes implements Listener {
         } catch (ClassNotFoundException ex) { return false; }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void enter(EntityPortalEnterEvent event) {
         if (!(event.getEntity() instanceof Player player) || event.getPortalType() != PortalType.NETHER) return;
         PortalLinkedPlugin.Settings active = plugin.settingsSnapshot();
         Trip ongoing = trips.get(player.getUniqueId());
+        if (ongoing != null && ongoing.started) return;
+        if (event.isCancelled()) {
+            if (ongoing != null) trips.remove(player.getUniqueId(), ongoing);
+            return;
+        }
+        if (ongoing != null && current(player, ongoing)) ongoing.contact = event;
         if (ongoing != null && ongoing.returning && current(player, ongoing)) {
             if (Portals.intersects(ongoing.source, player)) {
                 plugin.withSettings(ongoing.settings, () -> {
                     if (!current(player, ongoing)) return;
-                    ongoing.contact = event;
                     if (!FoliaNative.hold(player, event.getLocation())) trips.remove(player.getUniqueId(), ongoing);
                 });
                 return;
@@ -90,15 +95,11 @@ final class FoliaRoutes implements Listener {
             return;
         }
         Location fromPosition = player.getLocation();
-        loadPortal(saved, target, player.getWidth(), player.getHeight()).whenComplete((usable, error) -> player.getScheduler().run(plugin, task -> {
+        double width = player.getWidth(), height = player.getHeight();
+        loadPortal(saved, target, width, height).whenComplete((usable, error) -> player.getScheduler().run(plugin, task -> {
             if (!current(player, trip)) return;
-            if (error != null || !Boolean.TRUE.equals(usable)) {
-                plugin.withSettings(trip.settings, () -> {
-                    if (!current(player, trip)) return;
-                    trips.remove(player.getUniqueId(), trip);
-                    vanillaFallback.put(player.getUniqueId(), source);
-                });
-                plugin.debug("Saved return unavailable for " + player.getName() + "; using vanilla lookup.");
+            if (error != null || !Boolean.TRUE.equals(usable) || player.getWidth() != width || player.getHeight() != height) {
+                fallback(player, trip);
                 return;
             }
             if (!Portals.intersects(source, player)) { trips.remove(player.getUniqueId(), trip); return; }
@@ -120,18 +121,29 @@ final class FoliaRoutes implements Listener {
                 finishCancelled(player, trip); return;
             }
             Location finalDestination = teleport.getTo().clone();
+            if (player.getWidth() != width || player.getHeight() != height) { fallback(player, trip); return; }
             if (!plugin.activePair(trip.settings, from, finalDestination.getWorld()) || !nativeAllows(player, finalDestination.getWorld())) {
                 finishCancelled(player, trip); return;
             }
-            plugin.withSettings(trip.settings, () -> {
+            if (!plugin.withSettings(trip.settings, () -> {
                 if (!current(player, trip)) return;
                 trip.target = finalDestination.getWorld().getUID();
                 player.setPortalCooldown(trip.cooldown);
-                plugin.debug("Returning " + player.getName() + " to their saved portal.");
-                if (!FoliaNative.teleport(player, finalDestination, () -> record(player, trip)))
-                    trips.remove(player.getUniqueId(), trip);
-            });
+                trip.started = true;
+            }) || !trip.started) return;
+            plugin.debug("Returning " + player.getName() + " to their saved portal.");
+            if (!FoliaNative.teleport(player, finalDestination, () -> record(player, trip)))
+                trips.remove(player.getUniqueId(), trip);
         }, () -> trips.remove(player.getUniqueId(), trip)));
+    }
+
+    private void fallback(Player player, Trip trip) {
+        plugin.withSettings(trip.settings, () -> {
+            if (!current(player, trip)) return;
+            trips.remove(player.getUniqueId(), trip);
+            vanillaFallback.put(player.getUniqueId(), trip.source);
+        });
+        plugin.debug("Saved return unavailable for " + player.getName() + "; using vanilla lookup.");
     }
 
     private void finishCancelled(Player player, Trip trip) {
@@ -216,7 +228,7 @@ final class FoliaRoutes implements Listener {
                     if (!Bukkit.isOwnedByCurrentRegion(world, minX, minZ, maxX, maxZ)) { result.complete(false); return; }
                     Location point = portal.searchOrigin(world).add(portal.axis() == Axis.X ? (portal.width() - 1) / 2.0 : 0,
                             0, portal.axis() == Axis.Z ? (portal.width() - 1) / 2.0 : 0);
-                    boolean safe = width == 0 || !world.hasCollisionsIn(new BoundingBox(point.getX() - width / 2, point.getY(),
+                    boolean safe = !world.hasCollisionsIn(new BoundingBox(point.getX() - width / 2, point.getY(),
                             point.getZ() - width / 2, point.getX() + width / 2, point.getY() + height, point.getZ() + width / 2));
                     result.complete(safe && Portals.usable(portal, world));
                 } catch (RuntimeException ex) { result.completeExceptionally(ex); }
@@ -277,6 +289,7 @@ final class FoliaRoutes implements Listener {
         EntityPortalEnterEvent contact;
         final int cooldown;
         final boolean returning;
+        boolean started;
         PortalRef arrival;
         Trip(PortalRef source, UUID target, PortalLinkedPlugin.Settings settings, int tick, boolean returning, EntityPortalEnterEvent contact, int cooldown) {
             this.source = source; this.target = target; this.settings = settings; this.tick = tick; this.returning = returning;

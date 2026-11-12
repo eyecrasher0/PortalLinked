@@ -82,7 +82,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
                 .flatMap(link -> link.returnPortal(source, target.getUID()));
         if (saved.isEmpty()) return;
         PortalRef destination = saved.get();
-        if (!Portals.usable(destination, target)) {
+        if (!Portals.usable(destination, target) || !Portals.safeReturn(event.getPlayer(), source, destination, target)) {
             debug("Saved return unavailable for " + event.getPlayer().getName() + "; using vanilla lookup.");
             return;
         }

@@ -4,6 +4,7 @@ package dev.eyecrasher.fixture;
 
 import com.google.gson.Gson;
 import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent;
+import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent;
 import com.google.gson.GsonBuilder;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.ChannelFutureListener;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.Connection;
@@ -73,6 +75,11 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     private UUID cancelNatural;
     private CompletableFuture<Boolean> foreignTeleport;
     private UUID cancelReturn;
+    private UUID cancelPending;
+    private boolean cancelPendingEarly;
+    private int pendingCancellations;
+    private UUID reloadOnRemoval;
+    private CompletableFuture<Boolean> removalReload;
     private final Map<UUID, Runnable> afterArrival = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> portalSounds = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> portalTickets = new ConcurrentHashMap<>();
@@ -86,7 +93,13 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     private void start() {
         overworld = Bukkit.getWorlds().stream().filter(w -> w.getEnvironment() == World.Environment.NORMAL).findFirst().orElseThrow();
         nether = Bukkit.getWorlds().stream().filter(w -> w.getEnvironment() == World.Environment.NETHER).findFirst().orElseThrow();
-        CompletableFuture<Void> work = System.getProperty("portal.phase", "1").equals("2") ? restart() : mechanics();
+        CompletableFuture<Void> work = switch (System.getProperty("portallinked.scenario", "")) {
+            case "pending-contact" -> pendingContacts();
+            case "blocked-return" -> blockedReturns();
+            case "teleport-lock" -> teleportLock().thenCompose(v -> reloadRace()).thenCompose(v -> portalEffects())
+                    .thenCompose(v -> immediateLogout(true));
+            default -> System.getProperty("portal.phase", "1").equals("2") ? restart() : mechanics();
+        };
         work.whenComplete((nothing, error) -> {
             try {
                 Files.writeString(Path.of("result-" + System.getProperty("portal.phase", "1") + ".json"),
@@ -98,7 +111,8 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     }
 
     private CompletableFuture<Void> mechanics() {
-        return cancellationRegression(false).thenCompose(v -> cancellationRegression(true))
+        return pendingContacts().thenCompose(v -> blockedReturns()).thenCompose(v -> teleportLock())
+                .thenCompose(v -> cancellationRegression(false)).thenCompose(v -> cancellationRegression(true))
                 .thenCompose(v -> adjacentFrames())
                 .thenCompose(v -> movementRegression())
                 .thenCompose(v -> reloadRace())
@@ -150,6 +164,126 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                         check(data(one) != null, "Folia persistence pair established"); return null;
                     }))
                     .thenCompose(v -> configuration(one, two))));
+    }
+
+    private CompletableFuture<Void> pendingContacts() {
+        return pendingContact(true, true).thenCompose(v -> pendingContact(true, false))
+                .thenCompose(v -> pendingContact(false, true)).thenCompose(v -> pendingContact(false, false));
+    }
+
+    private CompletableFuture<Void> pendingContact(boolean saved, boolean early) {
+        int base = 88032 + (saved ? 0 : 16000) + (early ? 0 : 8000), target = base / 8 - 4;
+        String label = "saved=" + saved + " early=" + early;
+        return frame(overworld, base, 64, 0, Axis.X, 2, 3)
+                .thenCompose(v -> frame(nether, target, 64, 0, Axis.X, 2, 3))
+                .thenCompose(v -> bot("PendingProbe", UUID.randomUUID(), overworld, base + .5, 64, .5))
+                .thenCompose(probe -> (saved ? travel(probe, nether, true) : CompletableFuture.<Void>completedFuture(null))
+                        .thenCompose(v -> player(probe, () -> {
+                            byte[] before = data(probe);
+                            check(saved == (before != null), "pending-contact probe has expected pair: " + label);
+                            if (saved) trigger(probe); else contact(probe, true, probe.blockPosition());
+                            cancelPending = probe.getUUID(); cancelPendingEarly = early; pendingCancellations = 0;
+                            trigger(probe);
+                            check(pendingCancellations == 1, "foreign listener cancels the subsequent native contact: " + label);
+                            return before;
+                        })).thenCompose(before -> (saved ? delay(probe, 8)
+                                : relocate(probe, new Location(nether, target + .5, 64, .5)))
+                                .thenCompose(v -> player(probe, () -> {
+                                    check(probe.level().getWorld().equals(nether), "subsequent cancellation prevents pending saved return: " + label);
+                                    check(Arrays.equals(before, data(probe)), "subsequent cancellation prevents stale pair recording: " + label);
+                                    cancelPending = null; return null;
+                                })))
+                        .thenCompose(v -> saved ? travel(probe, overworld, true) : CompletableFuture.completedFuture(null)));
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void cancelPendingEarly(EntityPortalEnterEvent event) {
+        if (cancelPendingEarly && event.getEntity().getUniqueId().equals(cancelPending)) {
+            pendingCancellations++; event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void cancelPendingLate(EntityPortalEnterEvent event) {
+        if (!cancelPendingEarly && event.getEntity().getUniqueId().equals(cancelPending)) {
+            pendingCancellations++; event.setCancelled(true);
+        }
+    }
+
+    private CompletableFuture<Void> teleportLock() {
+        return frame(overworld, 80032, 64, 0, Axis.X, 2, 3)
+                .thenCompose(v -> frame(nether, 10000, 64, 0, Axis.X, 2, 3))
+                .thenCompose(v -> bot("RemovalReload", UUID.randomUUID(), overworld, 80032.5, 64, .5))
+                .thenCompose(probe -> travel(probe, nether, true).thenCompose(v -> player(probe, () -> {
+                    byte[] before = data(probe);
+                    removalReload = new CompletableFuture<>(); reloadOnRemoval = probe.getUUID();
+                    trigger(probe); return before;
+                })).thenCompose(before -> removalReload.thenCompose(done -> arrived(probe, overworld, false, before, 0))
+                        .thenCompose(v -> player(probe, () -> {
+                            check(probe.level().getWorld().equals(overworld), "claimed native return completes after callback reload");
+                            check(Arrays.equals(before, data(probe)), "callback reload prevents stale claimed-trip data write");
+                            return null;
+                        }))))
+                .thenCompose(v -> global(() -> { writeSettings(true, List.of()); return null; }));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void reloadDuringRemoval(EntityRemoveFromWorldEvent event) {
+        if (!event.getEntity().getUniqueId().equals(reloadOnRemoval)) return;
+        reloadOnRemoval = null;
+        try {
+            global(() -> { writeSettings(false, List.of()); return null; }).get(3, TimeUnit.SECONDS);
+            check(true, "foreign native removal callback can finish global reload before returning");
+            removalReload.complete(true);
+        } catch (Exception ex) { removalReload.completeExceptionally(new AssertionError("Native callback held settings monitor", ex)); }
+    }
+
+    private CompletableFuture<Void> blockedReturns() {
+        return blockedReturn(Axis.X, false, false).thenCompose(v -> blockedReturn(Axis.Z, false, false))
+                .thenCompose(v -> blockedReturn(Axis.X, true, false)).thenCompose(v -> blockedReturn(Axis.Z, true, false))
+                .thenCompose(v -> blockedReturn(Axis.X, false, true));
+    }
+
+    private CompletableFuture<Void> blockedReturn(Axis axis, boolean homeNether, boolean delayedScale) {
+        boolean x = axis == Axis.X;
+        World home = homeNether ? nether : overworld, shared = homeNether ? overworld : nether;
+        int base = homeNether ? 20004 : delayedScale ? 152032 : 144032;
+        int fallback = base - (homeNether ? 8 : 32), other = homeNether ? fallback * 8 : fallback / 8;
+        String label = "axis=" + axis + " homeNether=" + homeNether + " delayedScale=" + delayedScale;
+        return clearForScale(home, axis, fallback - 3, base + 5)
+                .thenCompose(v -> clearForScale(shared, axis, other - 3, other + 5))
+                .thenCompose(v -> frame(home, x ? base : 0, 64, x ? 0 : base, axis, 2, 3))
+                .thenCompose(v -> frame(home, x ? fallback : 0, 64, x ? 0 : fallback, axis, 4, 8))
+                .thenCompose(v -> frame(shared, x ? other : 0, 64, x ? 0 : other, axis, 4, 8))
+                .thenCompose(v -> bot("Blocked" + axis + homeNether, UUID.randomUUID(), home,
+                        x ? base + 1 : .5, 64, x ? .5 : base + 1))
+                .thenCompose(probe -> travel(probe, shared, true).thenCompose(v -> travel(probe, home, true))
+                        .thenCompose(v -> player(probe, () -> {
+                            check(Math.abs((x ? probe.getX() : probe.getZ()) - base) < 3,
+                                    "small unobstructed saved return succeeds: " + label); return null;
+                        })).thenCompose(v -> travel(probe, shared, true))
+                        .thenCompose(v -> player(probe, () -> {
+                            probe.snapTo(x ? other + 2 : .5, 64, x ? .5 : other + 2);
+                            if (delayedScale) trigger(probe);
+                            probe.getBukkitEntity().getAttribute(Attribute.SCALE).setBaseValue(4); probe.refreshDimensions();
+                            probe.snapTo(x ? other + 2 : .5, 64, x ? .5 : other + 2);
+                            check(probe.getBoundingBox().getXsize() > 2 && probe.getBoundingBox().getYsize() > 7,
+                                    "blocked-return probe has actual enlarged bounds: " + label); return null;
+                        })).thenCompose(v -> delayedScale ? arrived(probe, home, false, null, 0) : travel(probe, home, false))
+                        .thenCompose(v -> player(probe, () -> {
+                            check(Math.abs((x ? probe.getX() : probe.getZ()) - fallback) < 4
+                                    && probe.level().noBlockCollision(probe, probe.getBoundingBox()),
+                                    "enlarged return uses unobstructed native frame: " + label); return null;
+                        })));
+    }
+
+    private CompletableFuture<Void> clearForScale(World world, Axis axis, int start, int end) {
+        boolean x = axis == Axis.X;
+        return region(world, x ? start : 0, x ? 0 : start, () -> {
+            for (int along = start; along <= end; along++) for (int across = -3; across <= 3; across++)
+                for (int y = 64; y <= 74; y++) world.getBlockAt(x ? along : across, y, x ? across : along).setType(Material.AIR, false);
+            return null;
+        });
     }
 
     private CompletableFuture<Void> cancelledReturnContact() {
@@ -571,6 +705,13 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     private void trigger(ServerPlayer player, boolean ready) { trigger(player, ready, player.blockPosition()); }
 
     private void trigger(ServerPlayer player, boolean ready, BlockPos contact) {
+        contact(player, ready, contact);
+        try {
+            var handle = Entity.class.getDeclaredMethod("handlePortal"); handle.setAccessible(true); handle.invoke(player);
+        } catch (ReflectiveOperationException ex) { throw new AssertionError(ex); }
+    }
+
+    private void contact(ServerPlayer player, boolean ready, BlockPos contact) {
         try {
             player.getBukkitEntity().setPortalCooldown(0);
             NetherPortalBlock block = (NetherPortalBlock) Blocks.NETHER_PORTAL;
@@ -584,7 +725,6 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
             inside.setAccessible(true);
             inside.invoke(block, player.level().getBlockState(contact), player.level(), contact,
                     player, InsideBlockEffectApplier.NOOP, true);
-            var handle = Entity.class.getDeclaredMethod("handlePortal"); handle.setAccessible(true); handle.invoke(player);
         } catch (ReflectiveOperationException ex) { throw new AssertionError(ex); }
     }
 

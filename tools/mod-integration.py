@@ -38,6 +38,7 @@ def run_logged(command, cwd, log, timeout=360):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--loader', choices=SERVERS, required=True)
+    parser.add_argument('--scenario', choices=['blocked-return'])
     parser.add_argument('--accept-eula', action='store_true')
     parser.add_argument('--cache', type=Path, default=ROOT / 'build/mod-integration-cache')
     parser.add_argument('--java', default=str(Path(os.environ['JAVA_HOME']) / 'bin/java') if 'JAVA_HOME' in os.environ else 'java')
@@ -89,11 +90,12 @@ def main():
     digest = hashlib.sha256(jar.read_bytes()).hexdigest()
     print(f'{loader} {definition["version"]} native test directory: {stage}', flush=True)
     phases = []
-    for phase in [1, 2]:
+    for phase in ([1] if args.scenario else [1, 2]):
         if phase == 2:
             (stage / 'config/portallinked.json').write_text('{"enabled":null,"excluded-worlds":[],"debug":false}\n')
         command = [java, '-Xms512M', '-Xmx2G', '-XX:ActiveProcessorCount=4', '-Dterminal.jline=false', '-Dterminal.ansi=false',
-                   '-Dportallinked.integration=true', f'-Dportallinked.phase={phase}']
+                   '-Dportallinked.integration=true', f'-Dportallinked.phase={phase}',
+                   f'-Dportallinked.scenario={args.scenario or ""}']
         command += ['-jar', str(launcher)] if definition['kind'] == 'fabric' else ['@' + str(cache / definition['args'])]
         command += ['--nogui']
         log = stage / f'console-{phase}.log'
@@ -110,7 +112,7 @@ def main():
         print(f'Phase {phase}: {len(outcome["checks"])} checks passed', flush=True)
     if any(hashlib.sha256(path.read_bytes()).hexdigest() != digest for path in [jar, stage / 'mods' / jar.name]):
         raise RuntimeError('Runtime artifact changed during integration')
-    report = {'loader': loader, 'server': definition, 'jar_sha256': digest, 'phases': phases,
+    report = {'loader': loader, 'scenario': args.scenario, 'server': definition, 'jar_sha256': digest, 'phases': phases,
               'passed': sum(len(phase['checks']) for phase in phases), 'stage': str(stage)}
     (work / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps({'loader': loader, 'passed': report['passed'], 'jar_sha256': digest}), flush=True)

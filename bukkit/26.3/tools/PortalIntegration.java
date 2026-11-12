@@ -37,6 +37,7 @@ import net.minecraft.world.level.block.NetherPortalBlock;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Axis;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -87,7 +88,8 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
             check(subject != null && subject.isEnabled(), "plugin enabled on " + Bukkit.getVersion());
             check(subject.getDescription().getAuthors().equals(List.of("EyeCrasher")), "EyeCrasher author metadata");
             portals = Class.forName("dev.eyecrasher.portallinked.Portals", true, subject.getClass().getClassLoader());
-            if (System.getProperty("portal.phase", "1").equals("2")) restartChecks();
+            if (System.getProperty("portallinked.scenario", "").equals("blocked-return")) blockedReturns();
+            else if (System.getProperty("portal.phase", "1").equals("2")) restartChecks();
             else {
                 mechanics();
                 ceilingChecks();
@@ -110,6 +112,7 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
     }
 
     private void mechanics() throws Exception {
+        blockedReturns();
         adjacentArrival(Axis.X);
         adjacentArrival(Axis.Z);
         frame(overworld, 832, 64, 0, Axis.X, 4, 5);
@@ -544,6 +547,40 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
         travel(probe);
         check(Math.abs((x ? probe.getX() : probe.getZ()) - base) < 3,
                 "centered adjacent portal returns to original base on axis " + axis);
+    }
+
+    private void blockedReturns() {
+        for (Axis axis : new Axis[] {Axis.X, Axis.Z}) for (boolean homeNether : new boolean[] {false, true}) {
+            boolean x = axis == Axis.X;
+            World home = homeNether ? nether : overworld, shared = homeNether ? overworld : nether;
+            int base = homeNether ? 20004 : 144032;
+            int fallback = base - (homeNether ? 8 : 32), other = homeNether ? fallback * 8 : fallback / 8;
+            for (World world : new World[] {home, shared}) {
+                int start = world == home ? fallback - 3 : other - 3, end = world == home ? base + 5 : other + 5;
+                for (int along = start; along <= end; along++) for (int across = -3; across <= 3; across++)
+                    for (int y = 64; y <= 74; y++) world.getBlockAt(x ? along : across, y, x ? across : along).setType(Material.AIR, false);
+            }
+            frame(home, x ? base : 0, 64, x ? 0 : base, axis, 2, 3);
+            frame(home, x ? fallback : 0, 64, x ? 0 : fallback, axis, 4, 8);
+            frame(shared, x ? other : 0, 64, x ? 0 : other, axis, 4, 8);
+            ServerPlayer probe = bot("Blocked" + axis + homeNether, UUID.randomUUID(), home,
+                    x ? base + 1 : .5, 64, x ? .5 : base + 1);
+            travel(probe); travel(probe);
+            check(probe.level().getWorld().equals(home) && Math.abs((x ? probe.getX() : probe.getZ()) - base) < 3,
+                    "small unobstructed saved return succeeds on " + axis + " homeNether=" + homeNether);
+            travel(probe);
+            probe.getBukkitEntity().getAttribute(Attribute.SCALE).setBaseValue(4); probe.refreshDimensions();
+            probe.snapTo(x ? other + 2 : .5, 64, x ? .5 : other + 2);
+            check(probe.getBoundingBox().getXsize() > 2 && probe.getBoundingBox().getYsize() > 7,
+                    "blocked-return probe has actual enlarged bounds on " + axis + " homeNether=" + homeNether);
+            travel(probe);
+            check(vanillaOrigin.equals(lastPortal.getTo()) && vanillaRadius == lastPortal.getSearchRadius()
+                    && vanillaCreate == lastPortal.getCanCreatePortal(),
+                    "blocked remembered frame preserves native lookup settings on " + axis + " homeNether=" + homeNether);
+            check(probe.level().getWorld().equals(home) && Math.abs((x ? probe.getX() : probe.getZ()) - fallback) < 4
+                    && probe.level().noBlockCollision(probe, probe.getBoundingBox()),
+                    "enlarged return falls back to unobstructed native frame on " + axis + " homeNether=" + homeNether);
+        }
     }
 
     private void travel(ServerPlayer player) {

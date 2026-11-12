@@ -112,6 +112,33 @@ final class Portals {
                 && at(world.getBlockAt(saved.x(), saved.y(), saved.z())).filter(saved::equals).isPresent();
     }
 
+    static boolean safeReturn(Player player, PortalRef source, PortalRef destination, World world) {
+        try {
+            Object entity = player.getClass().getMethod("getHandle").invoke(player);
+            Object level = world.getClass().getMethod("getHandle").invoke(world);
+            Class<?> entityType = Class.forName("net.minecraft.world.entity.Entity");
+            Class<?> levelType = Class.forName("net.minecraft.server.level.ServerLevel");
+            Class<?> positionType = Class.forName("net.minecraft.core.BlockPos");
+            Class<?> rectangleType = Class.forName("net.minecraft.util.BlockUtil$FoundRectangle");
+            Class<?> transitionType = Class.forName("net.minecraft.world.level.portal.TeleportTransition");
+            Class<?> afterType = Class.forName("net.minecraft.world.level.portal.TeleportTransition$PostTeleportTransition");
+            Class<?> vectorType = Class.forName("net.minecraft.world.phys.Vec3");
+            Class<?> boxType = Class.forName("net.minecraft.world.phys.AABB");
+            var position = positionType.getConstructor(int.class, int.class, int.class);
+            Object entry = position.newInstance(source.x(), source.y(), source.z());
+            Object exit = rectangleType.getConstructor(positionType, int.class, int.class).newInstance(
+                    position.newInstance(destination.x(), destination.y(), destination.z()), destination.width(), destination.height());
+            var build = Class.forName("net.minecraft.world.level.block.NetherPortalBlock").getDeclaredMethod(
+                    "getDimensionTransitionFromExit", entityType, positionType, rectangleType, levelType, afterType);
+            build.setAccessible(true);
+            Object transition = build.invoke(null, entity, entry, exit, level, transitionType.getField("DO_NOTHING").get(null));
+            Object arrival = transitionType.getMethod("position").invoke(transition);
+            Object offset = vectorType.getMethod("subtract", vectorType).invoke(arrival, entityType.getMethod("position").invoke(entity));
+            Object bounds = boxType.getMethod("move", vectorType).invoke(entityType.getMethod("getBoundingBox").invoke(entity), offset);
+            return (boolean) levelType.getMethod("noCollision", entityType, boxType).invoke(level, entity, bounds);
+        } catch (ReflectiveOperationException ex) { return false; }
+    }
+
     private static boolean paperAllows(PortalRef saved, World world) {
         if (!PAPER_CONFIG) return true;
         try {

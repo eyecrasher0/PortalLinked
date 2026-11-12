@@ -69,7 +69,8 @@ public final class NativeIntegration {
         NativeIntegration test = new NativeIntegration(server);
         String failure = null;
         try {
-            if (System.getProperty("portallinked.phase", "1").equals("2")) test.restart();
+            if (System.getProperty("portallinked.scenario", "").equals("blocked-return")) test.blockedReturns();
+            else if (System.getProperty("portallinked.phase", "1").equals("2")) test.restart();
             else { test.mechanics(); test.administration(); test.persistence(); }
             server.saveEverything(true, true, true);
         } catch (Throwable ex) { ex.printStackTrace(); failure = ex.toString(); }
@@ -81,6 +82,7 @@ public final class NativeIntegration {
     }
 
     private void mechanics() throws Exception {
+        blockedReturns();
         adjacentArrival(Direction.Axis.X);
         adjacentArrival(Direction.Axis.Z);
         frame(overworld, 832, 64, 0, Direction.Axis.X, 4, 5);
@@ -179,6 +181,39 @@ public final class NativeIntegration {
         travel(player);
         check(player.level() == overworld && Math.abs((x ? player.getX() : player.getZ()) - base) < 3,
                 "centered adjacent arrival returns to original base on axis " + axis);
+    }
+
+    private void blockedReturns() throws Exception {
+        for (Direction.Axis axis : new Direction.Axis[] {Direction.Axis.X, Direction.Axis.Z})
+            for (boolean homeNether : new boolean[] {false, true}) {
+                boolean x = axis == Direction.Axis.X;
+                ServerLevel home = homeNether ? nether : overworld, shared = homeNether ? overworld : nether;
+                int base = homeNether ? 20004 : 144032;
+                int fallback = base - (homeNether ? 8 : 32), other = homeNether ? fallback * 8 : fallback / 8;
+                for (ServerLevel level : new ServerLevel[] {home, shared}) {
+                    int start = level == home ? fallback - 3 : other - 3, end = level == home ? base + 5 : other + 5;
+                    for (int along = start; along <= end; along++) for (int across = -3; across <= 3; across++)
+                        for (int y = 64; y <= 74; y++) level.setBlock(new BlockPos(x ? along : across, y, x ? across : along),
+                                Blocks.AIR.defaultBlockState(), 18);
+                }
+                frame(home, x ? base : 0, 64, x ? 0 : base, axis, 2, 3);
+                frame(home, x ? fallback : 0, 64, x ? 0 : fallback, axis, 4, 8);
+                frame(shared, x ? other : 0, 64, x ? 0 : other, axis, 4, 8);
+                ServerPlayer probe = bot("Blocked" + axis + homeNether, UUID.randomUUID(), home,
+                        x ? base + 1 : .5, 64, x ? .5 : base + 1);
+                travel(probe); travel(probe);
+                check(probe.level() == home && Math.abs((x ? probe.getX() : probe.getZ()) - base) < 3,
+                        "small unobstructed saved return succeeds on " + axis + " homeNether=" + homeNether);
+                travel(probe);
+                probe.getAttribute(Attributes.SCALE).setBaseValue(4); probe.refreshDimensions();
+                probe.snapTo(x ? other + 2 : .5, 64, x ? .5 : other + 2);
+                check(probe.getBoundingBox().getXsize() > 2 && probe.getBoundingBox().getYsize() > 7,
+                        "blocked-return probe has actual enlarged bounds on " + axis + " homeNether=" + homeNether);
+                travel(probe);
+                check(probe.level() == home && Math.abs((x ? probe.getX() : probe.getZ()) - fallback) < 4
+                        && probe.level().noBlockCollision(probe, probe.getBoundingBox()),
+                        "enlarged return falls back to unobstructed native frame on " + axis + " homeNether=" + homeNether);
+            }
     }
 
     private void administration() throws Exception {
