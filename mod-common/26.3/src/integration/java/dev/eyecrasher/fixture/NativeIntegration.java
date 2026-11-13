@@ -263,13 +263,16 @@ public final class NativeIntegration {
         ServerPlayer player = bot("DimensionIds", UUID.randomUUID(), overworld, 176032.5, 64, 0.5);
         travel(player);
         PlayerLinkData data = (PlayerLinkData) player;
-        for (String invalid : List.of(":the_nether", ":overworld", "the_nether", "overworld")) {
+        List<String> invalidWorlds = List.of(":the_nether", ":overworld", "the_nether", "overworld",
+                "minecraft:", "custom_namespace:", ":", "");
+        for (String invalid : invalidWorlds) {
             PortalPair before = pair(player);
             TeleportTransition transition = destination(player);
             var pending = data.portallinked$getPending();
             check(pending != null && pending.transition() == transition, "native trip is pending before invalid dimension reload " + invalid);
             command("portallinked status", player, true); String status = last();
-            writeConfig(true, invalid, true);
+            Files.writeString(Path.of("config/portallinked.json"), JSON.toJson(Map.of("enabled", false,
+                    "excluded-worlds", List.of(invalid), "debug", true)));
             check(command("portallinked reload", player, true) == 0 && last().contains("Previous settings are unchanged"),
                     "incomplete dimension reload is rejected " + invalid);
             command("portallinked status", player, true);
@@ -305,7 +308,7 @@ public final class NativeIntegration {
         clone.load(TagValueInput.create(ProblemReporter.DISCARDING, server.registryAccess(), saved));
         check(pair(player).equals(pair(clone)), "fully qualified endpoint worlds round-trip through native player load");
         for (String endpoint : List.of("departure", "arrival"))
-            for (String invalid : List.of(":the_nether", ":overworld", "the_nether", "overworld", "")) {
+            for (String invalid : invalidWorlds) {
                 clone.load(TagValueInput.create(ProblemReporter.DISCARDING, server.registryAccess(), saved));
                 CompoundTag corrupt = saved.copy();
                 corrupt.getCompound(PortalPair.KEY).orElseThrow().getCompound(endpoint).orElseThrow().putString("world", invalid);

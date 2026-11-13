@@ -93,7 +93,7 @@ public final class PortalLinkedServer {
                 if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString())
                     throw new IllegalArgumentException("Dimension names must be strings");
                 String name = element.getAsString();
-                if (name.indexOf(':') <= 0 || Identifier.tryParse(name) == null)
+                if (name.indexOf(':') <= 0 || name.endsWith(":") || Identifier.tryParse(name) == null)
                     throw new IllegalArgumentException("Use complete dimension identifiers");
                 excluded.add(name);
             }
