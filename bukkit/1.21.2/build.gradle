@@ -1,0 +1,43 @@
+plugins {
+    id 'java'
+}
+
+group = 'dev.eyecrasher.portallinked'
+version = '1.2.0+1.21.2'
+base { archivesName = 'portallinked-bukkit' }
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+    withSourcesJar()
+}
+
+// Paper publishes no 1.21.2 API; native checks use the exact Spigot 1.21.2 server.
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:1.21.3-R0.1-SNAPSHOT'
+    testImplementation 'io.papermc.paper:paper-api:1.21.3-R0.1-SNAPSHOT'
+    testImplementation platform('org.junit:junit-bom:5.13.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+tasks.named('processResources') {
+    filesMatching('plugin.yml') { expand(version: project.version) }
+}
+
+tasks.named('test') { useJUnitPlatform() }
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+}

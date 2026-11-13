@@ -18,11 +18,22 @@ declines personal routing and link updates when that native predicate denies
 entry, while the server's own route retains its existing behavior. The test
 suite compares a direct native control with the plugin-enabled journey.
 
-Folia 1.21.8 predates that game rule and uses the server's `allow-nether`
+Folia 1.21.4, 1.21.5, 1.21.6 and 1.21.8 predate that game rule and uses the server's `allow-nether`
 startup setting. PortalLinked honours it for personal routing and link updates.
 The native suite also compares behavior after a live setting change while the
 Nether world is already loaded, without treating that as a supported server
 configuration reload.
+
+The 1.21 and 1.21.1 plugin adapters retain the last accepted portal contact,
+matching those servers' native selection when a player overlaps neighboring
+frames. These versions inspect the final entity bounds during fast movement;
+the native tests confirm that crossing a frame without an accepted collision
+does not create a journey or change an existing pair. Later SDKs have separate
+swept-collision checks.
+
+The Folia 1.21.5 fixture waits for native world initialization before creating
+distant test regions. It does not alter the runtime plugin or server spawn
+initialization.
 
 Some releases have no corresponding build of a particular server or loader.
 For example, Forge publishes 1.8.9, but the official Paper and Spigot historical
@@ -33,8 +44,10 @@ for an exact target. Spigot version aliases sometimes select a newer patch;
 the queue pins historical numeric revisions in those cases. The native runner
 checks the server JAR’s embedded Minecraft version before starting it.
 
-The Spigot 26.1 adapter compiles against Paper's 26.1.1 API and is tested on
-the exact Spigot 26.1 server.
+Paper publishes no 1.21.2 API, so that Spigot adapter compiles against the shared
+Bukkit API surface from Paper 1.21.3 and is tested on the exact Spigot 1.21.2
+server. Similarly, the Spigot 26.1 adapter compiles against Paper's 26.1.1 API.
+These compile dependencies do not add neighboring Minecraft server targets.
 
 Inspect the queue:
 

@@ -61,13 +61,14 @@ owners={
  'net/minecraft/world/entity/Entity','net/minecraft/world/entity/PortalProcessor',
  'net/minecraft/world/level/block/Blocks','net/minecraft/world/level/block/NetherPortalBlock',
  'net/minecraft/world/phys/Vec3','net/minecraft/world/phys/AABB',
- 'net/minecraft/world/level/portal/TeleportTransition','net/minecraft/world/level/CollisionGetter',
+ 'net/minecraft/world/level/portal/TeleportTransition','net/minecraft/world/level/portal/DimensionTransition',
+ 'net/minecraft/world/level/CollisionGetter',
  'net/minecraft/core/Vec3i','net/minecraft/core/BlockPos','net/minecraft/network/Connection',
  'net/minecraft/server/players/PlayerList'
 }
 fields={'portalTime','portalProcess','NETHER_PORTAL','DO_NOTHING','ZERO','channel','address','playersByUUID','playersByName'}
 methods={'isSamePortal','isInsidePortalThisTick','getEntryPosition','getX','getY','getZ','getBoundingBox',
- 'position','subtract','move','noCollision','getDimensionTransitionFromExit','handlePortal','entityInside'}
+ 'position','pos','subtract','move','noCollision','getDimensionTransitionFromExit','handlePortal','entityInside','checkInsideBlocks'}
 member_maps=list((builder/'work').glob('bukkit-*-members.csrg'))
 if len(member_maps)!=1:raise RuntimeError('Use an exact SDK cache with one generated member map')
 for mapping in member_maps:
@@ -80,10 +81,13 @@ for mapping in member_maps:
   if canonical not in owners:continue
   if len(a)==3 and new in fields:symbols['f.'+owner.replace('/','.')+'#'+new]=old
   if len(a)==4 and new in methods:symbols['m.'+owner.replace('/','.')+'#'+new+parameters(a[2])]=old
+transition='net/minecraft/world/level/portal/TeleportTransition'
+if transition not in aliases:transition='net/minecraft/world/level/portal/DimensionTransition'
+after=transition+'$Post'+transition.rsplit('/',1)[1]
 needed={
  'net/minecraft/world/entity/Entity','net/minecraft/world/level/block/Blocks','net/minecraft/world/level/block/Portal',
  'net/minecraft/core/BlockPos','net/minecraft/server/level/ServerLevel','net/minecraft/util/BlockUtil$FoundRectangle',
- 'net/minecraft/world/level/portal/TeleportTransition','net/minecraft/world/level/portal/TeleportTransition$PostTeleportTransition',
+ transition,after,
  'net/minecraft/world/phys/Vec3','net/minecraft/world/phys/AABB','net/minecraft/world/level/block/NetherPortalBlock',
 }
 if 'net/minecraft/BlockUtil$FoundRectangle' in aliases:
