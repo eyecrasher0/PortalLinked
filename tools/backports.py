@@ -47,6 +47,13 @@ def main():
                 module = Path(loader) / row['minecraft']
                 if not (ROOT / module / 'build.gradle').is_file():
                     parser.error(f'Implemented target is missing its build project: {module}')
+                sdk_path = (ROOT / module / 'tools/servers.json' if loader == 'bukkit'
+                            else ROOT / 'tools/mod-servers' / (row['minecraft'] + '.json'))
+                if not sdk_path.is_file():
+                    parser.error(f'Implemented target is missing its pinned SDK definition: {sdk_path.relative_to(ROOT)}')
+                sdk = json.loads(sdk_path.read_text()).get(platform)
+                if sdk is None or (loader != 'bukkit' and sdk.get('minecraft') != row['minecraft']):
+                    parser.error(f'Implemented target has no exact SDK definition: {row["minecraft"]} / {platform}')
                 legacy = loader == 'forge' and row['java'] == 8
                 entries.append({
                     'minecraft': row['minecraft'], 'platform': platform, 'module': str(module),
