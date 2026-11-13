@@ -18,7 +18,7 @@ declines personal routing and link updates when that native predicate denies
 entry, while the server's own route retains its existing behavior. The test
 suite compares a direct native control with the plugin-enabled journey.
 
-Folia 1.20.6, 1.21.4, 1.21.5, 1.21.6 and 1.21.8 predate that game rule and use the server's `allow-nether`
+Folia 1.20.4, 1.20.6, 1.21.4, 1.21.5, 1.21.6 and 1.21.8 predate that game rule and use the server's `allow-nether`
 startup setting. PortalLinked honours it for personal routing and link updates.
 The native suite also compares behavior after a live setting change while the
 Nether world is already loaded, without treating that as a supported server
@@ -49,7 +49,8 @@ Bukkit API surface from Paper 1.21.3 and is tested on the exact Spigot 1.21.2
 server. Similarly, the Spigot 26.1 adapter compiles against Paper's 26.1.1 API.
 Paper 1.20.5's historical API POM references an unavailable Adventure snapshot BOM,
 so its adapter compiles against Paper 1.20.6's shared API and runs on exact 1.20.5
-servers. These compile dependencies do not add neighboring Minecraft server targets.
+servers. Spigot 1.20.3 similarly uses the shared API from Paper 1.20.4.
+These compile dependencies do not add neighboring Minecraft server targets.
 
 Inspect the queue:
 
@@ -88,7 +89,9 @@ The pinned Forge 26.1 and 1.21.11 installers validate successfully using JDK17.
 Pass `--installer-java /path/to/jdk-17/bin/java` to the backport native command;
 the server still uses the target Minecraft JDK. Installer checksum checks remain
 enabled. ForgeGradle7 build tools need JDK25 even for a Java21 Minecraft target;
-provide both toolchains to Gradle when building those adapters.
+provide both toolchains to Gradle when building those adapters. Forge 1.20.3
+and 1.20.4 instead use ForgeGradle6, Java17 build tools and production SRG
+remapping, including separate runtime reference maps for the mod and fixture.
 
 Spigot 1.21.11 uses Mojang’s official `1.21.11_unobfuscated` variant. Its SDK
 definition pins that variant explicitly; other Minecraft patch releases remain
@@ -114,3 +117,12 @@ and runs its native restart checks with the matching Minecraft Java runtime.
 Planned adapters are omitted until their projects exist. Its artifacts retain
 the built JARs, test reports and native server logs. The released 26.3 target
 continues to use the separate Platform verification workflow.
+
+Minecraft 1.20.4 Bukkit servers also predate Paper's Mojang runtime namespace.
+The runner composes an exact BuildTools namespace map in its private SDK cache,
+remaps Paper/Folia's patched SDK only for compiling the fixture, and remaps that
+fixture back to the native server namespace. Only the reflection symbols used
+by PortalLinked are packaged with the plugin; full SDK mappings are not shipped.
+Before the vanilla scale attribute existed, enlarged-body checks use a native
+ServerPlayer subclass overriding its actual dimensions. The same collision,
+source contact, saved exit and fallback assertions still run.
