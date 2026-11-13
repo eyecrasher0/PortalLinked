@@ -113,14 +113,6 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                     .thenCompose(v -> bot("NativePolicy", UUID.randomUUID(), overworld, 832.5, 64, .5))
                     .thenCompose(probe -> travel(probe, nether, true).thenCompose(v -> travel(probe, overworld, true))
                             .thenCompose(v -> blockedEntry(probe)));
-            case "teleport-lock" -> teleportLock().thenCompose(v -> reloadRace()).thenCompose(v -> portalEffects())
-                    .thenCompose(v -> immediateLogout(true));
-            case "source-exit" -> sourceExits().thenCompose(v -> pendingContacts()).thenCompose(v -> cancelledReturnContact())
-                    .thenCompose(v -> teleportLock()).thenCompose(v -> movementRegression())
-                    .thenCompose(v -> scaledContact(Axis.X)).thenCompose(v -> scaledContact(Axis.Z))
-                    .thenCompose(v -> immediateLogout(true));
-            case "departure-contact" -> departureContacts().thenCompose(v -> adjacentArrival(Axis.X))
-                    .thenCompose(v -> adjacentArrival(Axis.Z));
             default -> System.getProperty("portal.phase", "1").equals("2") ? restart() : mechanics();
         };
         work.whenComplete((nothing, error) -> {

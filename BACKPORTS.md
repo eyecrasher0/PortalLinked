@@ -1,9 +1,9 @@
 # Backport targets
 
-The requested scope is **1.8.9**, **1.12.2**, and every stable Java release from
+The requested scope is **1.7.10**, **1.8.9**, **1.12.2**, and every stable Java release from
 **1.16.5 through 26.3**, including intermediate patch releases. These are exact
-Minecraft targets, not broad compatibility ranges. The request for `1.7.0` is
-awaiting clarification: Mojang has no Java release with that identifier.
+Minecraft targets, not broad compatibility ranges. The owner clarified the original `1.7.0` request as **1.7.10**.
+The resulting queue contains **38** exact Minecraft releases.
 
 The complete queue and upstream platform availability are recorded in
 [`tools/backport-targets.json`](tools/backport-targets.json). Availability means
@@ -12,7 +12,7 @@ PortalLinked. Only **26.3 / PortalLinked 1.1.0** is released at present.
 Work on **PortalLinked 1.2.0** backports is in progress. The queue records
 builds that have completed native verification separately from released builds.
 
-Folia 26.2 build7 and 26.1.2 build8 have an upstream limitation: its native asynchronous Nether
+Folia 26.2 build7, 26.1.2 build8 and 1.21.11 build14 have an upstream limitation: its native asynchronous Nether
 travel path does not enforce `allowEnteringNetherUsingPortals`. PortalLinked
 declines personal routing and link updates when that native predicate denies
 entry, while the server's own route retains its existing behavior. The test
@@ -64,3 +64,14 @@ Pass `--installer-java /path/to/jdk-17/bin/java` to the backport native command;
 the server still uses the target Minecraft JDK. Installer checksum checks remain
 enabled. ForgeGradle7 build tools need JDK25 even for a Java21 Minecraft target;
 provide both toolchains to Gradle when building those adapters.
+
+Spigot 1.21.11 uses Mojang’s official `1.21.11_unobfuscated` variant. Its SDK
+definition pins that variant explicitly; other Minecraft patch releases remain
+separate targets.
+
+Legacy Forge 1.8.9 and 1.12.2 builds use Java8. They store the structured
+portal pair in Forge’s native `PlayerPersisted` player NBT, which survives death
+and respawn; modern loader builds use their native player-save hook. No external
+database is required. Changing between these legacy and modern save layouts does
+not automatically migrate remembered pairs; an ordinary successful crossing
+establishes a fresh pair.

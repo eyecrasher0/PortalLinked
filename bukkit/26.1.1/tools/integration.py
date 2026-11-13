@@ -93,10 +93,10 @@ def prepare_engine(java, engine, cache):
         raise RuntimeError(f"Expected one native server in {cache / 'versions'}, got {len(native)}")
     with zipfile.ZipFile(native[0]) as archive:
         actual = json.loads(archive.read("version.json"))
-    expected = MODULE.name
-    if actual["name"] != expected:
-        raise RuntimeError(f"SDK targets Minecraft {actual['name']}; expected exact {expected}")
-    return launcher, native[0], actual["name"]
+    expected = definition.get("minecraft_id", MODULE.name)
+    if expected not in {MODULE.name, MODULE.name + "_unobfuscated"} or actual["id"] != expected:
+        raise RuntimeError(f"SDK targets Minecraft {actual['id']}; expected exact {expected}")
+    return launcher, native[0], actual["id"]
 
 
 def main():
@@ -139,7 +139,7 @@ def main():
     shutil.copy2(jar, copied)
     with zipfile.ZipFile(stage / "plugins/PortalIntegration.jar", "w") as out:
         out.writestr("plugin.yml", "name: PortalIntegration\nversion: 1\n"
-                     f"main: dev.eyecrasher.fixture.{fixture}\napi-version: '26.1.1'\ndepend: [PortalLinked]\nfolia-supported: true\n")
+                     f"main: dev.eyecrasher.fixture.{fixture}\napi-version: '26.1'\ndepend: [PortalLinked]\nfolia-supported: true\n")
         for path in classes.rglob("*.class"):
             out.write(path, path.relative_to(classes))
     shutil.copy2(launcher, stage / "server.jar")
@@ -190,7 +190,7 @@ def main():
         print(f"Phase {phase}: {len(outcome['checks'])} checks passed", flush=True)
     if any(hashlib.sha256(path.read_bytes()).hexdigest() != digest for path in [jar, copied]):
         raise RuntimeError("Release artifact changed during integration")
-    report = {"minecraft": minecraft, "jar_sha256": digest, "engine": args.engine, "sync_chunk_writes": args.sync_chunk_writes == "true", "scenario": args.scenario, "server": SERVERS[args.engine], "phases": phases,
+    report = {"minecraft": MODULE.name, "server_minecraft_id": minecraft, "jar_sha256": digest, "engine": args.engine, "sync_chunk_writes": args.sync_chunk_writes == "true", "scenario": args.scenario, "server": SERVERS[args.engine], "phases": phases,
               "passed": sum(len(phase["checks"]) for phase in phases), "stage": str(stage)}
     (work / "result.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({"passed": report["passed"], "jar_sha256": digest}), flush=True)

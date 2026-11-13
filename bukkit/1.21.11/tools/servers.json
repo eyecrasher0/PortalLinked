@@ -27,6 +27,7 @@
       "Bukkit": "9daba7255f227a8f9cf3a02a3df0a2285556be58",
       "CraftBukkit": "d74c5d880bd53a6cb44e74eaa5a9167fa07a82c2",
       "Spigot": "56165cab196da9518bcb05be7183420eaf261410"
-    }
+    },
+    "minecraft_id": "1.21.11_unobfuscated"
   }
 }

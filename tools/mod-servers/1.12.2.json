@@ -1,0 +1,11 @@
+{
+  "forge": {
+    "minecraft": "1.12.2",
+    "version": "1.12.2-14.23.5.2864",
+    "kind": "legacy-forge",
+    "url": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.12.2-14.23.5.2864/forge-1.12.2-14.23.5.2864-installer.jar",
+    "sha256": "2c0065938de6df6f3deb4a08a3018940a1cc86111adb34a3be55d657857a11cc",
+    "server_jar": "forge-1.12.2-14.23.5.2864.jar",
+    "mod_version": "1.2.0"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "forge": {
+    "minecraft": "1.8.9",
+    "version": "1.8.9-11.15.1.2318-1.8.9",
+    "kind": "legacy-forge",
+    "url": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.8.9-11.15.1.2318-1.8.9/forge-1.8.9-11.15.1.2318-1.8.9-installer.jar",
+    "sha256": "f9fdf4945ca02d73ec6cc46300942f4e199e4add068877d517157b3677563656",
+    "server_jar": "forge-1.8.9-11.15.1.2318-1.8.9-universal.jar",
+    "mod_version": "1.2.0"
+  }
+}

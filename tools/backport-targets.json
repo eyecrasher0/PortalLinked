@@ -2,12 +2,7 @@
   "schema": 1,
   "checked_on": "2026-11-13",
   "scope": "Exact stable Java releases. Availability is upstream SDK availability, not a claim of completed PortalLinked compatibility.",
-  "unresolved_requests": [
-    {
-      "requested": "1.7.0",
-      "reason": "No Java release with this ID in the official Mojang manifest; asked owner whether1.7.10 was intended."
-    }
-  ],
+  "unresolved_requests": [],
   "sources": {
     "minecraft": "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
     "paper": "https://fill.papermc.io/v3/projects/paper",
@@ -20,6 +15,41 @@
     "spigot": "https://hub.spigotmc.org/versions/{minecraft}.json"
   },
   "targets": [
+    {
+      "minecraft": "1.7.10",
+      "java": 8,
+      "platforms": {
+        "paper": {
+          "available": false,
+          "reason": "No upstream build for this exact Minecraft release."
+        },
+        "spigot": {
+          "available": false,
+          "reason": "No upstream build for this exact Minecraft release."
+        },
+        "purpur": {
+          "available": false,
+          "reason": "No upstream build for this exact Minecraft release."
+        },
+        "folia": {
+          "available": false,
+          "reason": "No upstream build for this exact Minecraft release."
+        },
+        "fabric": {
+          "available": false,
+          "reason": "No upstream build for this exact Minecraft release."
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No upstream build for this exact Minecraft release."
+        },
+        "forge": {
+          "available": true,
+          "state": "planned",
+          "sdk": "1.7.10-10.13.4.1614-1.7.10"
+        }
+      }
+    },
     {
       "minecraft": "1.8.9",
       "java": 8,
@@ -47,7 +77,7 @@
         "forge": {
           "available": true,
           "sdk": "1.8.9-11.15.1.2318-1.8.9",
-          "state": "planned"
+          "state": "native-verified"
         },
         "neoforge": {
           "available": false,
@@ -88,7 +118,7 @@
         "forge": {
           "available": true,
           "sdk": "1.12.2-14.23.5.2864",
-          "state": "planned"
+          "state": "native-verified"
         },
         "neoforge": {
           "available": false,
@@ -1254,11 +1284,11 @@
       "platforms": {
         "paper": {
           "available": true,
-          "state": "planned"
+          "state": "building"
         },
         "purpur": {
           "available": true,
-          "state": "planned"
+          "state": "building"
         },
         "folia": {
           "available": false,
@@ -1266,7 +1296,7 @@
         },
         "spigot": {
           "available": true,
-          "state": "planned",
+          "state": "building",
           "refs": {
             "BuildData": "42d18d4c4653ffc549778dbe223f6994a031d69e",
             "Bukkit": "b6d15d8f8b03e16ffac4cc0b263f5735504b6766",
@@ -1279,18 +1309,18 @@
         },
         "fabric": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified"
         },
         "forge": {
           "available": true,
           "sdk": "1.21.9-59.0.5",
-          "state": "planned"
+          "state": "building"
         },
         "neoforge": {
           "available": true,
           "sdk": "21.9.16-beta",
           "artifact": "net.neoforged:neoforge",
-          "state": "planned"
+          "state": "building"
         }
       }
     },
@@ -1322,18 +1352,18 @@
         },
         "fabric": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "forge": {
           "available": true,
           "sdk": "1.21.10-60.1.18",
-          "state": "building"
+          "state": "native-verified"
         },
         "neoforge": {
           "available": true,
           "sdk": "21.10.64",
           "artifact": "net.neoforged:neoforge",
-          "state": "building"
+          "state": "native-verified"
         }
       }
     },
@@ -1347,15 +1377,15 @@
         },
         "purpur": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "folia": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "spigot": {
           "available": true,
-          "state": "building",
+          "state": "native-verified",
           "refs": {
             "BuildData": "beeae81d9ac5521b767517cee44d0c345a8be3fb",
             "Bukkit": "9daba7255f227a8f9cf3a02a3df0a2285556be58",
@@ -1370,13 +1400,13 @@
         "forge": {
           "available": true,
           "sdk": "1.21.11-61.2.5",
-          "state": "building"
+          "state": "native-verified"
         },
         "neoforge": {
           "available": true,
           "sdk": "21.11.48",
           "artifact": "net.neoforged:neoforge",
-          "state": "building"
+          "state": "native-verified"
         }
       }
     },
@@ -1398,7 +1428,7 @@
         },
         "spigot": {
           "available": true,
-          "state": "building",
+          "state": "native-verified",
           "refs": {
             "BuildData": "5bf19beb9fa500f822c35eb5634fcefe27f60bec",
             "Bukkit": "8cc8b51d9e6d522b73c380441be0a5c0e88c153a",
@@ -1416,7 +1446,7 @@
         "forge": {
           "available": true,
           "sdk": "26.1-62.0.9",
-          "state": "building"
+          "state": "native-verified"
         },
         "neoforge": {
           "available": true,
@@ -1444,7 +1474,7 @@
         },
         "spigot": {
           "available": true,
-          "state": "building",
+          "state": "native-verified",
           "refs": {
             "BuildData": "71cd3e74d4a679366ccd4b6fff5e5595362832e3",
             "Bukkit": "e2e27ca3506e4802c4d123239f57c2d9692072c6",
@@ -1490,7 +1520,7 @@
         },
         "spigot": {
           "available": true,
-          "state": "building",
+          "state": "native-verified",
           "refs": {
             "BuildData": "1766f29a5430bb246f77e2fe24debb93a26a587d",
             "Bukkit": "b5342f1ad2869a496f29d1d320744c00b161a162",

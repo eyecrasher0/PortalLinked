@@ -80,7 +80,8 @@ def main():
         if hashlib.sha256(payload).hexdigest() != definition['sha256']:
             raise RuntimeError('Loader SDK checksum mismatch')
         launcher.write_bytes(payload)
-    if definition['kind'] == 'installer' and not (cache / definition['args']).is_file():
+    installed = definition.get('server_jar') if definition['kind'] == 'legacy-forge' else definition.get('args')
+    if definition['kind'] in ('installer', 'legacy-forge') and not (cache / installed).is_file():
         run_logged([installer_java, '-jar', str(launcher), '--installServer', str(cache)], cache, cache / 'installer.log')
     work = module / 'build/integration'
     work.mkdir(parents=True, exist_ok=True)
@@ -88,18 +89,23 @@ def main():
     (stage / 'mods').mkdir()
     shutil.copy2(jar, stage / 'mods' / jar.name)
     shutil.copy2(fixture, stage / 'mods' / fixture.name)
-    if definition['kind'] == 'installer':
+    if definition['kind'] in ('installer', 'legacy-forge'):
         (stage / 'libraries').symlink_to(cache / 'libraries', target_is_directory=True)
-        for shim in cache.glob('*-shim.jar'):
+        native_jars = cache.glob('*.jar') if definition['kind'] == 'legacy-forge' else cache.glob('*-shim.jar')
+        for shim in native_jars:
             (stage / shim.name).symlink_to(shim)
     (stage / 'eula.txt').write_text('eula=true\n')
     with socket.socket() as available:
         available.bind(('127.0.0.1', 0)); port = available.getsockname()[1]
     generator = json.dumps({'layers': [{'block': 'minecraft:bedrock', 'height': 1},
                                       {'block': 'minecraft:grass_block', 'height': 1}], 'biome': 'minecraft:plains'})
+    legacy = definition['kind'] == 'legacy-forge'
+    level_type = 'FLAT' if legacy else 'minecraft:flat'
+    if legacy:
+        generator = '3;minecraft:bedrock,2*minecraft:dirt,minecraft:grass;1;'
     (stage / 'server.properties').write_text(
         f'server-ip=127.0.0.1\nserver-port={port}\nonline-mode=false\nenforce-secure-profile=false\n'
-        f'level-type=minecraft:flat\ngenerator-settings={generator}\nlevel-seed=123456789\n'
+        f'level-type={level_type}\ngenerator-settings={generator}\nlevel-seed=123456789\n'
         'generate-structures=false\nview-distance=2\nsimulation-distance=2\n'
         'pause-when-empty-seconds=-1\nmax-tick-time=300000\n'
         f'sync-chunk-writes={args.sync_chunk_writes}\n')
@@ -112,8 +118,13 @@ def main():
         command = [java, '-Xms512M', '-Xmx2G', '-XX:ActiveProcessorCount=4', '-Dterminal.jline=false', '-Dterminal.ansi=false',
                    '-Dportallinked.integration=true', f'-Dportallinked.phase={phase}',
                    f'-Dportallinked.scenario={args.scenario or ""}']
-        command += ['-jar', str(launcher)] if definition['kind'] == 'fabric' else ['@' + str(cache / definition['args'])]
-        command += ['--nogui']
+        if definition['kind'] == 'fabric':
+            command += ['-jar', str(launcher)]
+        elif legacy:
+            command += ['-jar', str(cache / definition['server_jar'])]
+        else:
+            command += ['@' + str(cache / definition['args'])]
+        command += ['nogui' if legacy else '--nogui']
         log = stage / f'console-{phase}.log'
         run_logged(command, stage, log)
         result = stage / f'result-{phase}.json'

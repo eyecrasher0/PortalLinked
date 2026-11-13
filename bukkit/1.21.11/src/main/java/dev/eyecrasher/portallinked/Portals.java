@@ -21,19 +21,19 @@ final class Portals {
     static Optional<Location> departure(Player player, Location contact) {
         try {
             Object entity = player.getClass().getMethod("getHandle").invoke(player);
-            var field = Class.forName("net.minecraft.world.entity.Entity").getDeclaredField("portalProcess");
+            var field = Nms.declaredField(Nms.type("net.minecraft.world.entity.Entity"), "portalProcess");
             field.setAccessible(true);
             Object process = field.get(entity);
-            Object block = Class.forName("net.minecraft.world.level.block.Blocks").getField("NETHER_PORTAL").get(null);
-            if (process == null || !(boolean) process.getClass().getMethod("isSamePortal",
-                    Class.forName("net.minecraft.world.level.block.Portal")).invoke(process, block)
-                    || !(boolean) process.getClass().getMethod("isInsidePortalThisTick").invoke(process))
+            Object block = Nms.field(Nms.type("net.minecraft.world.level.block.Blocks"), "NETHER_PORTAL").get(null);
+            if (process == null || !(boolean) Nms.method(process.getClass(), "isSamePortal",
+                    Nms.type("net.minecraft.world.level.block.Portal")).invoke(process, block)
+                    || !(boolean) Nms.method(process.getClass(), "isInsidePortalThisTick").invoke(process))
                 return Optional.of(contact.clone());
-            Object entry = process.getClass().getMethod("getEntryPosition").invoke(process);
+            Object entry = Nms.method(process.getClass(), "getEntryPosition").invoke(process);
             return Optional.of(new Location(contact.getWorld(),
-                    (int) entry.getClass().getMethod("getX").invoke(entry),
-                    (int) entry.getClass().getMethod("getY").invoke(entry),
-                    (int) entry.getClass().getMethod("getZ").invoke(entry)));
+                    (int) Nms.method(entry.getClass(), "getX").invoke(entry),
+                    (int) Nms.method(entry.getClass(), "getY").invoke(entry),
+                    (int) Nms.method(entry.getClass(), "getZ").invoke(entry)));
         } catch (ReflectiveOperationException ex) { return Optional.empty(); }
     }
 
@@ -135,26 +135,26 @@ final class Portals {
         try {
             Object entity = player.getClass().getMethod("getHandle").invoke(player);
             Object level = world.getClass().getMethod("getHandle").invoke(world);
-            Class<?> entityType = Class.forName("net.minecraft.world.entity.Entity");
-            Class<?> levelType = Class.forName("net.minecraft.server.level.ServerLevel");
-            Class<?> positionType = Class.forName("net.minecraft.core.BlockPos");
-            Class<?> rectangleType = Class.forName("net.minecraft.util.BlockUtil$FoundRectangle");
-            Class<?> transitionType = Class.forName("net.minecraft.world.level.portal.TeleportTransition");
-            Class<?> afterType = Class.forName("net.minecraft.world.level.portal.TeleportTransition$PostTeleportTransition");
-            Class<?> vectorType = Class.forName("net.minecraft.world.phys.Vec3");
-            Class<?> boxType = Class.forName("net.minecraft.world.phys.AABB");
+            Class<?> entityType = Nms.type("net.minecraft.world.entity.Entity");
+            Class<?> levelType = Nms.type("net.minecraft.server.level.ServerLevel");
+            Class<?> positionType = Nms.type("net.minecraft.core.BlockPos");
+            Class<?> rectangleType = Nms.type("net.minecraft.util.BlockUtil$FoundRectangle");
+            Class<?> transitionType = Nms.type("net.minecraft.world.level.portal.TeleportTransition");
+            Class<?> afterType = Nms.type("net.minecraft.world.level.portal.TeleportTransition$PostTeleportTransition");
+            Class<?> vectorType = Nms.type("net.minecraft.world.phys.Vec3");
+            Class<?> boxType = Nms.type("net.minecraft.world.phys.AABB");
             var position = positionType.getConstructor(int.class, int.class, int.class);
             Object entry = position.newInstance(source.x(), source.y(), source.z());
             Object exit = rectangleType.getConstructor(positionType, int.class, int.class).newInstance(
                     position.newInstance(destination.x(), destination.y(), destination.z()), destination.width(), destination.height());
-            var build = Class.forName("net.minecraft.world.level.block.NetherPortalBlock").getDeclaredMethod(
+            var build = Nms.declaredMethod(Nms.type("net.minecraft.world.level.block.NetherPortalBlock"),
                     "getDimensionTransitionFromExit", entityType, positionType, rectangleType, levelType, afterType);
             build.setAccessible(true);
-            Object transition = build.invoke(null, entity, entry, exit, level, transitionType.getField("DO_NOTHING").get(null));
-            Object arrival = transitionType.getMethod("position").invoke(transition);
-            Object offset = vectorType.getMethod("subtract", vectorType).invoke(arrival, entityType.getMethod("position").invoke(entity));
-            Object bounds = boxType.getMethod("move", vectorType).invoke(entityType.getMethod("getBoundingBox").invoke(entity), offset);
-            return (boolean) levelType.getMethod("noCollision", entityType, boxType).invoke(level, entity, bounds);
+            Object transition = build.invoke(null, entity, entry, exit, level, Nms.field(transitionType, "DO_NOTHING").get(null));
+            Object arrival = Nms.method(transitionType, "position").invoke(transition);
+            Object offset = Nms.method(vectorType, "subtract", vectorType).invoke(arrival, Nms.method(entityType, "position").invoke(entity));
+            Object bounds = Nms.method(boxType, "move", vectorType).invoke(Nms.method(entityType, "getBoundingBox").invoke(entity), offset);
+            return (boolean) Nms.method(levelType, "noCollision", entityType, boxType).invoke(level, entity, bounds);
         } catch (ReflectiveOperationException ex) { return false; }
     }
 
@@ -162,7 +162,7 @@ final class Portals {
         if (!PAPER_CONFIG) return true;
         try {
             Object level = world.getClass().getMethod("getHandle").invoke(world);
-            Object nether = Class.forName("net.minecraft.world.level.dimension.LevelStem").getField("NETHER").get(null);
+            Object nether = Nms.type("net.minecraft.world.level.dimension.LevelStem").getField("NETHER").get(null);
             if (!nether.equals(level.getClass().getMethod("getTypeKey").invoke(level))) return true;
             Object config = level.getClass().getMethod("paperConfig").invoke(level);
             Object environment = config.getClass().getField("environment").get(config);

@@ -111,6 +111,14 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
             getLogger().log(Level.SEVERE, "INTEGRATION FAILURE", ex);
         } finally {
             try {
+                // The embedded test channels have no real client disconnect loop.
+                // Complete native logout before shutdown so chunk tickets retire.
+                if (server != null) for (ServerPlayer bot : new ArrayList<>(bots)) server.getPlayerList().remove(bot);
+            } catch (Throwable ex) {
+                if (failure == null) failure = ex;
+                getLogger().log(Level.SEVERE, "INTEGRATION LOGOUT FAILURE", ex);
+            }
+            try {
                 String error = failure == null ? "null" : "\"" + failure.toString().replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
                 String cases = passed.stream().map(s -> "\"" + s.replace("\"", "\\\"") + "\"").collect(java.util.stream.Collectors.joining(","));
                 Files.writeString(Path.of("result-" + System.getProperty("portal.phase", "1") + ".json"),
