@@ -1,0 +1,49 @@
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle' version '7.0.17'
+}
+
+group = 'dev.eyecrasher.portallinked'
+version = '1.2.0+1.20.6'
+base { archivesName = 'portallinked-forge' }
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}
+minecraft { runs { register('server') { args '--nogui' } } }
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
+dependencies { implementation minecraft.dependency('net.minecraftforge:forge:1.20.6-50.2.15') }
+// Resolve Minecraft's Java 21 SDK while emitting injection classes understood by
+// the older bundled Mixin. The dedicated server still runs on Java 21.
+configurations.configureEach {
+    if (canBeResolved) attributes.attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
+}
+sourceSets.main {
+    java.srcDir '../../mod-common/1.20.6/src/main/java'
+    resources.srcDir '../../mod-common/1.20.6/src/main/resources'
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 17
+}
+processResources {
+    filesMatching('META-INF/mods.toml') { expand version: project.version }
+    filesMatching('portallinked.mixins.json') { filter { line -> line.replace('JAVA_21', 'JAVA_17') } }
+    from('../../branding/icon.png')
+}
+jar { manifest { attributes 'MixinConfigs': 'portallinked.mixins.json,portallinked.travel.mixins.json' } }
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+}
+
+// Forge 50's bundled Mixin accepts Java 17 injection bytecode. Minecraft still uses Java 21.
+ext.portallinkedFixtureCompatibility = 'JAVA_17'
+apply from: '../../gradle/mod-integration.gradle'

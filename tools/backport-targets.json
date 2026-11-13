@@ -801,7 +801,7 @@
       "platforms": {
         "paper": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified"
         },
         "purpur": {
           "available": false,
@@ -813,7 +813,7 @@
         },
         "spigot": {
           "available": true,
-          "state": "planned",
+          "state": "native-verified",
           "refs": {
             "BuildData": "a7f7c2118b877fde4cf0f32f1f730ffcdee8e9ee",
             "Bukkit": "e8215ea2000b9ecfff08f46f9b02ea1aa7140915",
@@ -826,7 +826,7 @@
         },
         "fabric": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified"
         },
         "forge": {
           "available": false,
@@ -836,7 +836,7 @@
           "available": true,
           "sdk": "20.5.21-beta",
           "artifact": "net.neoforged:neoforge",
-          "state": "planned"
+          "state": "native-verified"
         }
       }
     },
@@ -846,19 +846,19 @@
       "platforms": {
         "paper": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified"
         },
         "purpur": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified"
         },
         "folia": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified"
         },
         "spigot": {
           "available": true,
-          "state": "planned",
+          "state": "native-verified",
           "refs": {
             "BuildData": "32d1baf2f4e0e7cd1ac22c7b2f6eb4c387e8a343",
             "Bukkit": "376e37db4b23b1fc18f93d3aeccaa40b8bb16ed2",
@@ -868,18 +868,19 @@
         },
         "fabric": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified"
         },
         "forge": {
           "available": true,
           "sdk": "1.20.6-50.2.15",
-          "state": "planned"
+          "state": "native-verified",
+          "build_java": 25
         },
         "neoforge": {
           "available": true,
           "sdk": "20.6.144",
           "artifact": "net.neoforged:neoforge",
-          "state": "planned"
+          "state": "native-verified"
         }
       }
     },

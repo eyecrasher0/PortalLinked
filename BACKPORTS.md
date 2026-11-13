@@ -18,7 +18,7 @@ declines personal routing and link updates when that native predicate denies
 entry, while the server's own route retains its existing behavior. The test
 suite compares a direct native control with the plugin-enabled journey.
 
-Folia 1.21.4, 1.21.5, 1.21.6 and 1.21.8 predate that game rule and uses the server's `allow-nether`
+Folia 1.20.6, 1.21.4, 1.21.5, 1.21.6 and 1.21.8 predate that game rule and use the server's `allow-nether`
 startup setting. PortalLinked honours it for personal routing and link updates.
 The native suite also compares behavior after a live setting change while the
 Nether world is already loaded, without treating that as a supported server
@@ -47,7 +47,9 @@ checks the server JAR’s embedded Minecraft version before starting it.
 Paper publishes no 1.21.2 API, so that Spigot adapter compiles against the shared
 Bukkit API surface from Paper 1.21.3 and is tested on the exact Spigot 1.21.2
 server. Similarly, the Spigot 26.1 adapter compiles against Paper's 26.1.1 API.
-These compile dependencies do not add neighboring Minecraft server targets.
+Paper 1.20.5's historical API POM references an unavailable Adventure snapshot BOM,
+so its adapter compiles against Paper 1.20.6's shared API and runs on exact 1.20.5
+servers. These compile dependencies do not add neighboring Minecraft server targets.
 
 Inspect the queue:
 

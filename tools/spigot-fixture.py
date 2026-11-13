@@ -10,6 +10,7 @@ parser.add_argument('--minecraft',required=True)
 parser.add_argument('--java',default='java')
 parser.add_argument('--input',type=Path)
 parser.add_argument('--output',type=Path)
+parser.add_argument('--reverse',action='store_true',help='Remap an exact native SDK to its development namespace')
 parser.add_argument('--runtime-symbols',type=Path)
 args=parser.parse_args()
 if bool(args.input)!=bool(args.output):parser.error('--input and --output must be provided together')
@@ -62,13 +63,17 @@ owners={
  'net/minecraft/world/level/block/Blocks','net/minecraft/world/level/block/NetherPortalBlock',
  'net/minecraft/world/phys/Vec3','net/minecraft/world/phys/AABB',
  'net/minecraft/world/level/portal/TeleportTransition','net/minecraft/world/level/portal/DimensionTransition',
+ 'net/minecraft/world/level/portal/PortalInfo','net/minecraft/world/level/portal/PortalShape',
  'net/minecraft/world/level/CollisionGetter',
  'net/minecraft/core/Vec3i','net/minecraft/core/BlockPos','net/minecraft/network/Connection',
- 'net/minecraft/server/players/PlayerList'
+ 'net/minecraft/server/players/PlayerList','net/minecraft/server/level/ServerPlayer',
+ 'net/minecraft/world/level/dimension/LevelStem',
+ 'net/minecraft/server/dedicated/DedicatedServer','net/minecraft/server/dedicated/DedicatedServerProperties'
 }
-fields={'portalTime','portalProcess','NETHER_PORTAL','DO_NOTHING','ZERO','channel','address','playersByUUID','playersByName'}
+fields={'portalTime','portalProcess','portalEntrancePos','isInsidePortal','portalCooldown','allowNether','enteredNetherPosition','pos','NETHER','NETHER_PORTAL','DO_NOTHING','ZERO','channel','address','playersByUUID','playersByName'}
 methods={'isSamePortal','isInsidePortalThisTick','getEntryPosition','getX','getY','getZ','getBoundingBox',
- 'position','pos','subtract','move','noCollision','getDimensionTransitionFromExit','handlePortal','entityInside','checkInsideBlocks'}
+ 'position','pos','subtract','move','noCollision','getDimensionTransitionFromExit','handlePortal','entityInside','checkInsideBlocks',
+ 'getDimensions','getPose','getDeltaMovement','getYRot','getXRot','getRelativePosition','createPortalInfo','getPortalWaitTime','getDimensionChangingDelay','handleNetherPortal','getProperties'}
 member_maps=list((builder/'work').glob('bukkit-*-members.csrg'))
 if len(member_maps)!=1:raise RuntimeError('Use an exact SDK cache with one generated member map')
 for mapping in member_maps:
@@ -81,15 +86,19 @@ for mapping in member_maps:
   if canonical not in owners:continue
   if len(a)==3 and new in fields:symbols['f.'+owner.replace('/','.')+'#'+new]=old
   if len(a)==4 and new in methods:symbols['m.'+owner.replace('/','.')+'#'+new+parameters(a[2])]=old
-transition='net/minecraft/world/level/portal/TeleportTransition'
-if transition not in aliases:transition='net/minecraft/world/level/portal/DimensionTransition'
-after=transition+'$Post'+transition.rsplit('/',1)[1]
+transition=next((name for name in ['net/minecraft/world/level/portal/TeleportTransition',
+ 'net/minecraft/world/level/portal/DimensionTransition'] if name in aliases),None)
 needed={
- 'net/minecraft/world/entity/Entity','net/minecraft/world/level/block/Blocks','net/minecraft/world/level/block/Portal',
- 'net/minecraft/core/BlockPos','net/minecraft/server/level/ServerLevel','net/minecraft/util/BlockUtil$FoundRectangle',
- transition,after,
+ 'net/minecraft/world/entity/Entity','net/minecraft/world/level/block/Blocks',
+ 'net/minecraft/core/BlockPos','net/minecraft/server/level/ServerLevel','net/minecraft/server/level/ServerPlayer','net/minecraft/util/BlockUtil$FoundRectangle',
  'net/minecraft/world/phys/Vec3','net/minecraft/world/phys/AABB','net/minecraft/world/level/block/NetherPortalBlock',
+ 'net/minecraft/world/level/dimension/LevelStem',
 }
+if transition:
+ needed.update({'net/minecraft/world/level/block/Portal',transition,transition+'$Post'+transition.rsplit('/',1)[1]})
+else:
+ needed.update({'net/minecraft/world/level/portal/PortalInfo','net/minecraft/world/level/portal/PortalShape',
+  'net/minecraft/core/Direction$Axis','net/minecraft/world/entity/EntityDimensions','net/minecraft/world/entity/Pose'})
 if 'net/minecraft/BlockUtil$FoundRectangle' in aliases:
  needed.remove('net/minecraft/util/BlockUtil$FoundRectangle')
  needed.add('net/minecraft/BlockUtil$FoundRectangle')
@@ -105,8 +114,8 @@ if args.input:
  if len(development)!=1:raise RuntimeError('Expected one exact remapped development SDK')
  cache=builder.parent
  special_source=builder/'BuildData/bin/SpecialSource.jar'
- classpath=[special_source,development[0],*sorted((cache/'libraries').rglob('*.jar'))]
+ classpath=[special_source,args.input.resolve() if args.reverse else development[0],*sorted((cache/'libraries').rglob('*.jar'))]
  subprocess.run([args.java,'-cp',os.pathsep.join(map(str,classpath)),
   'net.md_5.specialsource.SpecialSource','--live','--stable','--in-jar',str(args.input.resolve()),
-  '--srg-in',str(mapping),'--out-jar',str(args.output.resolve())],check=True)
+  '--srg-in',str(mapping),'--out-jar',str(args.output.resolve()),*(['--reverse'] if args.reverse else [])],check=True)
 print('Composed exact Spigot namespace for Minecraft '+mc)
