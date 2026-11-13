@@ -724,7 +724,7 @@
         },
         "spigot": {
           "available": true,
-          "state": "planned",
+          "state": "native-verified",
           "refs": {
             "BuildData": "58819a3c2a15e6e47ad89d32fb60d44c253491f3",
             "Bukkit": "d9c1eb83af46e61e089cb899a24a8cc0a66e625b",
@@ -737,18 +737,21 @@
         },
         "fabric": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified",
+          "build_java": 21
         },
         "forge": {
           "available": true,
           "sdk": "1.20.3-49.0.2",
-          "state": "planned"
+          "state": "native-verified",
+          "build_java": 17
         },
         "neoforge": {
           "available": true,
           "sdk": "20.3.8-beta",
           "artifact": "net.neoforged:neoforge",
-          "state": "planned"
+          "state": "native-verified",
+          "build_java": 21
         }
       }
     },

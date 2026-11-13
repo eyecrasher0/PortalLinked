@@ -80,9 +80,11 @@ def main():
         if hashlib.sha256(payload).hexdigest() != definition['sha256']:
             raise RuntimeError('Loader SDK checksum mismatch')
         launcher.write_bytes(payload)
-    installed = definition.get('server_jar') if definition['kind'] == 'legacy-forge' else definition.get('args')
+    installed = definition.get('server_jar') or definition.get('args')
     if definition['kind'] in ('installer', 'legacy-forge') and not (cache / installed).is_file():
         run_logged([installer_java, '-jar', str(launcher), '--installServer', str(cache)], cache, cache / 'installer.log')
+        if not (cache / installed).is_file():
+            raise RuntimeError(f'Installer did not produce its pinned server entry point: {installed}')
     work = module / 'build/integration'
     work.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix='run-', dir=work))
@@ -120,7 +122,7 @@ def main():
                    f'-Dportallinked.scenario={args.scenario or ""}']
         if definition['kind'] == 'fabric':
             command += ['-jar', str(launcher)]
-        elif legacy:
+        elif definition.get('server_jar'):
             command += ['-jar', str(cache / definition['server_jar'])]
         else:
             command += ['@' + str(cache / definition['args'])]
