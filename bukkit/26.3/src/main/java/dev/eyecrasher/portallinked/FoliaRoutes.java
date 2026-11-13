@@ -79,11 +79,15 @@ final class FoliaRoutes implements Listener {
         PortalLinked link = plugin.readLink(player).orElse(null);
         PortalRef remembered = link != null && link.arrival().equals(source) ? link.departure() : null;
         World rememberedWorld = remembered == null ? null : Bukkit.getWorld(remembered.world());
-        World target = rememberedWorld != null && plugin.activePair(active, from, rememberedWorld) ? rememberedWorld : defaultTarget;
-        if (!plugin.activePair(active, from, target) || !nativeAllows(player, target)) return;
-        PortalRef saved = remembered != null && remembered.world().equals(target.getUID()) ? remembered : null;
+        World preferred = rememberedWorld != null && plugin.activePair(active, from, rememberedWorld) ? rememberedWorld : defaultTarget;
+        PortalRef saved = remembered != null && remembered.world().equals(preferred.getUID()) ? remembered : null;
         boolean bypass = source.equals(vanillaFallback.remove(player.getUniqueId()));
-        boolean returning = saved != null && !bypass && !player.isInsideVehicle() && player.getPassengers().isEmpty();
+        // A swept contact can already be outside the frame. Holding it would
+        // consume native travel, while a pending saved return requires continuity.
+        boolean returning = saved != null && !bypass && !player.isInsideVehicle() && player.getPassengers().isEmpty()
+                && Portals.intersects(source, player);
+        World target = returning ? preferred : defaultTarget;
+        if (!plugin.activePair(active, from, target) || !nativeAllows(player, target)) return;
         Trip trip = new Trip(source, target.getUID(), active, player.getTicksLived(), returning, event, cooldown);
         if (!plugin.withSettings(active, () -> {
             trips.put(player.getUniqueId(), trip);

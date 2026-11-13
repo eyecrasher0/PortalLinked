@@ -94,6 +94,7 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
             check(subject.getDescription().getAuthors().equals(List.of("EyeCrasher")), "EyeCrasher author metadata");
             portals = Class.forName("dev.eyecrasher.portallinked.Portals", true, subject.getClass().getClassLoader());
             if (System.getProperty("portallinked.scenario", "").equals("blocked-return")) blockedReturns();
+            else if (System.getProperty("portallinked.scenario", "").equals("swept-contact")) sweptContacts();
             else if (System.getProperty("portallinked.scenario", "").equals("departure-contact")) {
                 departureContacts();
                 adjacentArrival(Axis.X);
@@ -122,6 +123,7 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
     }
 
     private void mechanics() throws Exception {
+        sweptContacts();
         blockedReturns();
         departureContacts();
         adjacentArrival(Axis.X);
@@ -587,6 +589,56 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
             check(probe.level().getWorld().equals(home) && Math.abs((x ? probe.getZ() : probe.getX()) - .5) < .1,
                     "remembered round trip reaches native departure plane: " + label);
         }
+    }
+
+    private void sweptContacts() {
+        for (boolean saved : new boolean[] {true, false}) for (Axis axis : new Axis[] {Axis.X, Axis.Z})
+            for (boolean homeNether : new boolean[] {false, true}) {
+                boolean x = axis == Axis.X;
+                World home = homeNether ? nether : overworld, shared = homeNether ? overworld : nether;
+                int base = (homeNether ? 40004 : 224032) + (saved ? 0 : homeNether ? 4000 : 16000);
+                int fallback = base - (homeNether ? 8 : 32), other = homeNether ? fallback * 8 : fallback / 8;
+                String label = "axis=" + axis + " homeNether=" + homeNether + " saved=" + saved;
+                frame(home, x ? base : 0, 64, x ? 0 : base, axis, 2, 3);
+                frame(home, x ? fallback : 0, 64, x ? 0 : fallback, axis, 2, 3);
+                frame(shared, x ? other : 0, 64, x ? 0 : other, axis, 2, 3);
+                ServerPlayer probe = bot("Sweep" + axis + homeNether + saved, UUID.randomUUID(), home,
+                        x ? base + .5 : .5, 64, x ? .5 : base + .5);
+                if (saved) {
+                    travel(probe);
+                    check(probe.level().getWorld().equals(shared) && Math.abs((x ? probe.getX() : probe.getZ()) - other) < 2,
+                            "swept return probe starts at its actual shared arrival: " + label);
+                }
+                probe.getBukkitEntity().setGameMode(org.bukkit.GameMode.CREATIVE);
+                World target = saved ? home : shared;
+                int along = saved ? other : base;
+                Vec3 from = new Vec3(x ? along + .5 : -.5, 64, x ? -.5 : along + .5);
+                Vec3 to = new Vec3(x ? along + .5 : 1.5, 64, x ? 1.5 : along + .5);
+                probe.snapTo(to.x, to.y, to.z);
+                probe.getBukkitEntity().setPortalCooldown(0);
+                nativeField(Entity.class, probe, "portalProcess", null);
+                check((x ? probe.getBoundingBox().minZ : probe.getBoundingBox().minX) > 1,
+                        "swept player ends outside the contacted frame: " + label);
+                probe.applyEffectsFromBlocks(from, to);
+                try {
+                    var field = Entity.class.getDeclaredField("portalProcess"); field.setAccessible(true);
+                    PortalProcessor process = (PortalProcessor) field.get(probe);
+                    check(process != null && process.isInsidePortalThisTick(), "native swept movement accepts the portal: " + label);
+                    var handle = Entity.class.getDeclaredMethod("handlePortal"); handle.setAccessible(true); handle.invoke(probe);
+                } catch (ReflectiveOperationException ex) { throw new AssertionError(ex); }
+                check(probe.level().getWorld().equals(target) && data(probe) != null,
+                        "swept crossing completes and records its pair: " + label);
+                if (saved) {
+                    check(Math.abs((x ? probe.getX() : probe.getZ()) - base) < 2,
+                            "swept saved return chooses original frame instead of native neighbor: " + label);
+                } else {
+                    check(java.nio.ByteBuffer.wrap(data(probe)).getInt(x ? 17 : 25) == base,
+                            "swept first trip records actual departure: " + label);
+                    travel(probe);
+                    check(probe.level().getWorld().equals(home) && Math.abs((x ? probe.getX() : probe.getZ()) - base) < 2,
+                            "recorded swept departure supports a personal return: " + label);
+                }
+            }
     }
 
     private void inside(ServerPlayer player, BlockPos contact) {

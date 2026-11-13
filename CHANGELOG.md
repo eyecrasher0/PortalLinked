@@ -14,6 +14,12 @@
 - Saves completed Folia journeys before logout, respects later entry cancellations,
   and retains native portal effects and Nether travel advancement tracking.
 - Handles adjacent arrival frames and scaled player contact bounds.
+- Uses the native first departure contact and preserves Folia's delay after exit
+  and re-entry.
+- Keeps swept-motion crossings available; Folia uses native routing when the
+  accepted movement has already left the portal volume.
+- Checks current player collision bounds before forcing a remembered return and
+  runs native teleport callbacks outside the shared settings lock.
 - Shares mod player-save data and JSON configuration across the three loaders.
 - Adds native server/restart verification for every supported platform.
 - Documents admin settings, installation choices and source/build requirements.

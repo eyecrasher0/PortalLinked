@@ -43,6 +43,7 @@ import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.NetherPortalBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.Axis;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.Bukkit;
@@ -96,6 +97,7 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
         nether = Bukkit.getWorlds().stream().filter(w -> w.getEnvironment() == World.Environment.NETHER).findFirst().orElseThrow();
         CompletableFuture<Void> work = switch (System.getProperty("portallinked.scenario", "")) {
             case "pending-contact" -> pendingContacts();
+            case "swept-contact" -> sweptContacts();
             case "blocked-return" -> blockedReturns();
             case "teleport-lock" -> teleportLock().thenCompose(v -> reloadRace()).thenCompose(v -> portalEffects())
                     .thenCompose(v -> immediateLogout(true));
@@ -118,7 +120,7 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     }
 
     private CompletableFuture<Void> mechanics() {
-        return sourceExits().thenCompose(v -> departureContacts())
+        return sweptContacts().thenCompose(v -> sourceExits()).thenCompose(v -> departureContacts())
                 .thenCompose(v -> pendingContacts()).thenCompose(v -> blockedReturns()).thenCompose(v -> teleportLock())
                 .thenCompose(v -> cancellationRegression(false)).thenCompose(v -> cancellationRegression(true))
                 .thenCompose(v -> adjacentFrames())
@@ -281,6 +283,74 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                     check(Math.abs((x ? probe.getZ() : probe.getX()) - .5) < .1,
                             "remembered round trip reaches native departure plane: " + label); return null;
                 })));
+    }
+
+    private CompletableFuture<Void> sweptContacts() {
+        CompletableFuture<Void> work = CompletableFuture.completedFuture(null);
+        for (boolean saved : new boolean[] {true, false}) for (Axis axis : new Axis[] {Axis.X, Axis.Z})
+            for (boolean homeNether : new boolean[] {false, true})
+                work = work.thenCompose(v -> sweptContact(axis, homeNether, saved));
+        return work;
+    }
+
+    private CompletableFuture<Void> sweptContact(Axis axis, boolean homeNether, boolean saved) {
+        boolean x = axis == Axis.X;
+        World home = homeNether ? nether : overworld, shared = homeNether ? overworld : nether;
+        int base = (homeNether ? 30004 : 232032) + (saved ? 0 : homeNether ? 4000 : 16000);
+        int fallback = base - (homeNether ? 8 : 32), other = homeNether ? fallback * 8 : fallback / 8;
+        String label = "axis=" + axis + " homeNether=" + homeNether + " saved=" + saved;
+        return clearForScale(home, axis, fallback - 3, base + 4)
+                .thenCompose(v -> clearForScale(shared, axis, other - 3, other + 4))
+                .thenCompose(v -> frame(home, x ? base : 0, 64, x ? 0 : base, axis, 2, 3))
+                .thenCompose(v -> frame(home, x ? fallback : 0, 64, x ? 0 : fallback, axis, 2, 3))
+                .thenCompose(v -> frame(shared, x ? other : 0, 64, x ? 0 : other, axis, 2, 3))
+                .thenCompose(v -> bot("Sweep" + axis + homeNether + saved, UUID.randomUUID(), home,
+                        x ? base + .5 : .5, 64, x ? .5 : base + .5))
+                .thenCompose(probe -> (saved ? travel(probe, shared, true) : CompletableFuture.<Void>completedFuture(null))
+                        .thenCompose(v -> player(probe, () -> {
+                            if (saved) check(probe.level().getWorld().equals(shared)
+                                            && Math.abs((x ? probe.getX() : probe.getZ()) - other) < 2,
+                                    "Folia sweep starts at its actual shared arrival: " + label);
+                            probe.getBukkitEntity().setGameMode(org.bukkit.GameMode.CREATIVE);
+                            int along = saved ? other : base;
+                            Vec3 from = new Vec3(x ? along + .5 : -.5, 64, x ? -.5 : along + .5);
+                            Vec3 to = new Vec3(x ? along + .5 : 1.5, 64, x ? 1.5 : along + .5);
+                            probe.snapTo(to.x, to.y, to.z);
+                            probe.getBukkitEntity().setPortalCooldown(0);
+                            try {
+                                var field = Entity.class.getDeclaredField("portalProcess"); field.setAccessible(true); field.set(probe, null);
+                            } catch (ReflectiveOperationException ex) { throw new AssertionError(ex); }
+                            check((x ? probe.getBoundingBox().minZ : probe.getBoundingBox().minX) > 1,
+                                    "swept Folia player ends outside the contacted frame: " + label);
+                            probe.applyEffectsFromBlocks(from, to);
+                            check(process(probe) != null && process(probe).isInsidePortalThisTick(),
+                                    "native Folia swept movement accepts the portal: " + label);
+                            handlePortal(probe);
+                            return null;
+                        })).thenCompose(v -> awaitWorldWithoutContact(probe, saved ? home : shared, 0))
+                        .thenCompose(v -> player(probe, () -> {
+                            check(data(probe) != null, "native swept Folia trip records a pair: " + label);
+                            if (saved) {
+                                check(Math.abs((x ? probe.getX() : probe.getZ()) - fallback) < 2,
+                                        "already-exited Folia sweep retains native routing: " + label);
+                                check(java.nio.ByteBuffer.wrap(data(probe)).getInt(x ? 48 : 56) == fallback,
+                                        "Folia sweep records actual native arrival: " + label);
+                            } else check(java.nio.ByteBuffer.wrap(data(probe)).getInt(x ? 17 : 25) == base,
+                                    "Folia sweep records actual departure: " + label);
+                            return null;
+                        })).thenCompose(v -> saved ? CompletableFuture.completedFuture(null)
+                                : travel(probe, home, true).thenCompose(done -> player(probe, () -> {
+                                    check(Math.abs((x ? probe.getX() : probe.getZ()) - base) < 2,
+                                            "normal Folia return uses the recorded swept departure: " + label);
+                                    return null;
+                                }))));
+    }
+
+    private CompletableFuture<Void> awaitWorldWithoutContact(ServerPlayer probe, World target, int attempts) {
+        return delay(probe, 1).thenCompose(v -> player(probe, () -> probe.level().getWorld().equals(target)))
+                .thenCompose(done -> done ? CompletableFuture.completedFuture(null) : attempts >= 80
+                        ? CompletableFuture.failedFuture(new AssertionError("Accepted native sweep did not change worlds"))
+                        : awaitWorldWithoutContact(probe, target, attempts + 1));
     }
 
     private CompletableFuture<Void> pendingContact(boolean saved, boolean early) {

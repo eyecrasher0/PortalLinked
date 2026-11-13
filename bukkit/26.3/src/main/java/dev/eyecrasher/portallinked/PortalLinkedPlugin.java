@@ -205,7 +205,8 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         if (contact == null || (contact.event instanceof Cancellable cancellable && cancellable.isCancelled())
                 || player.getTicksLived() - contact.tick > 2
                 || !contact.block.getWorld().equals(player.getWorld())) return Optional.empty();
-        return Portals.at(contact.block.getBlock()).filter(portal -> Portals.intersects(portal, player));
+        // Native movement accepts swept contacts even after the body leaves the frame.
+        return Portals.at(contact.block.getBlock());
     }
 
     Optional<PortalLinked> readLink(Player player) {

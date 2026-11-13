@@ -98,7 +98,7 @@ def prepare_engine(java, engine, cache):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", choices=SERVERS, default="paper")
-    parser.add_argument("--scenario", choices=["pending-contact", "blocked-return", "teleport-lock", "source-exit", "departure-contact"])
+    parser.add_argument("--scenario", choices=["pending-contact", "blocked-return", "teleport-lock", "source-exit", "departure-contact", "swept-contact"])
     parser.add_argument("--accept-eula", action="store_true",
                         help="accept https://www.minecraft.net/eula for disposable test servers")
     parser.add_argument("--cache", type=Path, default=MODULE / "build/integration-cache")
@@ -167,7 +167,8 @@ def main():
         run_logged([java, "-Xms512M", "-Xmx2G", "-XX:ActiveProcessorCount=4",
                     "-Dterminal.jline=false", "-Dterminal.ansi=false", f"-Dportal.phase={phase}",
                     f"-Dportallinked.scenario={args.scenario or ''}",
-                    "-jar", "server.jar", "--nogui"], stage, log)
+                    "-jar", "server.jar", "--nogui"], stage, log,
+                   timeout=600 if args.engine == "spigot" else 300)
         # Event dispatch catches plugin exceptions and may let vanilla travel
         # continue, so a successful fixture result alone must not hide them.
         if any("Could not pass event" in line and ("to PortalLinked " in line or "to PortalIntegration " in line)
