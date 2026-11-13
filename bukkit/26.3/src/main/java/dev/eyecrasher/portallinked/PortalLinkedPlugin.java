@@ -229,7 +229,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
 
     Settings settingsSnapshot() { return settings; }
 
-    /** Linearize the final side effect with reload; never hold this across an async wait. */
+    /** Guard trip claims and data writes against reload; no waits or foreign callbacks. */
     synchronized boolean withSettings(Settings expected, Runnable action) {
         if (!isEnabled() || settings != expected || !expected.enabled) return false;
         action.run();

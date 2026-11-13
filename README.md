@@ -40,7 +40,8 @@ Folia is verified against its 26.3 build 6 alpha and uses region/entity schedule
   world border and exit generation.
 - If the original portal is extinguished, destroyed, resized or outside the
   current world border, Minecraft's normal portal lookup is used. The same
-  applies when Paper's live Nether ceiling policy excludes the saved portal.
+  applies when the player's current body cannot fit at the remembered exit or
+  Paper's live Nether ceiling policy excludes the saved portal.
 - Saves the pair alongside normal player saves, logout and orderly server
   shutdown. Plugins use the player's PersistentDataContainer; mods use player
   NBT. No external database is needed. The first crossing after installation
@@ -54,9 +55,8 @@ Folia is verified against its 26.3 build 6 alpha and uses region/entity schedule
 On Folia, new trips retain the server's native asynchronous portal travel.
 Remembered returns validate the destination on its owning region and move the
 player with `teleportAsync`. They use a clear position in the original portal
-and emit cancellable player portal/teleport events. If that position is blocked,
-the server uses its native lookup. Mounted players and swept contacts that already
-ended outside the portal volume retain native Folia routing.
+and emit cancellable player portal/teleport events. Mounted players and swept
+contacts that already ended outside the portal volume retain native Folia routing.
 Player data is changed only on the owning region/entity thread, including native
 arrival and teleport completion callbacks.
 
@@ -94,8 +94,9 @@ The Fabric, NeoForge and Forge mods create `config/portallinked.json`:
 
 For mods, exclusions use complete, case-sensitive dimension identifiers, such as
 `["minecraft:the_nether"]`. The settings have the same effect as the plugin
-settings. Both the namespace and path must be present; `the_nether` and
-`:the_nether` are invalid. Keep all three fields present with the types shown above.
+settings. Both the namespace and path must be non-empty; `the_nether`,
+`:the_nether` and `minecraft:` are invalid. Keep all three fields present with
+the types shown above.
 
 Apply configuration changes with `/portallinked reload`. The optional admin
 commands require `portallinked.admin` on Bukkit servers, granted to operators by
@@ -110,7 +111,7 @@ default. The mods require vanilla gamemaster command permission (operator level 
 
 Successful reloads clear pending crossings. Forgetting also clears the selected
 player's pending crossing, so an arrival already in progress cannot recreate that link.
-If a key is missing or null, YAML syntax is invalid, or a setting has the wrong
+If a key is missing or null, YAML/JSON syntax is invalid, or a setting has the wrong
 type, reload reports failure and retains the previous active settings, pending
 crossings and saved links. Fix the file and reload again. If the initial
 configuration is invalid, linking stays disabled until a valid reload succeeds.
@@ -145,7 +146,7 @@ For a mod, run `./gradlew clean build integrationFixture` in `fabric/26.3`,
 python3 tools/mod-integration.py --loader fabric --accept-eula
 ```
 
-Replace `fabric` with the matching loader. The normal runtime JAR is in that
+Replace `fabric` with the matching loader. Each platform's runtime JAR is in its
 module's `build/libs/` directory. Integration fixture JARs are disposable test
 tools and must not be distributed or installed on a real server.
 
@@ -171,7 +172,7 @@ automated transitions do not establish end-to-end client compatibility.
 
 Copyright (C) 2026 EyeCrasher. Licensed under the **GNU General Public License,
 version 3 only** (`GPL-3.0-only`). See [LICENSE](LICENSE) and [NOTICE](NOTICE).
-Distribute the corresponding source archive alongside the plugin JAR.
+Distribute the complete corresponding source archive alongside runtime JARs.
 
 Implemented independently using the Bukkit/Paper APIs, loader SDKs and native
 Minecraft portal transitions. Paper's live per-world configuration is respected

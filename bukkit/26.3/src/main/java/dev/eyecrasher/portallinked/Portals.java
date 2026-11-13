@@ -13,7 +13,7 @@ import org.bukkit.block.data.Orientable;
 import org.bukkit.entity.Player;
 import org.bukkit.util.BoundingBox;
 
-/** Bounded portal inspection on the server thread; no world-wide searches. */
+/** Bounded portal inspection on the owning server/region thread; no world-wide searches. */
 final class Portals {
     private static final boolean PAPER_CONFIG = hasPaperConfig();
     private Portals() {}
