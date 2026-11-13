@@ -1,11 +1,12 @@
 import groovy.json.JsonOutput
 
 def loaderName = projectDir.parentFile.name
+def minecraftVersion = projectDir.name
 def generatedMetadata = layout.buildDirectory.dir('generated/integration-metadata')
 
 sourceSets {
     integration {
-        java.srcDirs '../../mod-common/26.3/src/integration/java', 'src/integration/java'
+        java.srcDirs "../../mod-common/${minecraftVersion}/src/integration/java", 'src/integration/java'
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
     }
 }
@@ -24,7 +25,7 @@ tasks.register('integrationMetadata') {
             new File(output, 'fabric.mod.json').text = JsonOutput.prettyPrint(JsonOutput.toJson([
                 schemaVersion: 1, id: 'portallinked_integration', version: '1', name: 'PortalLinked integration fixture',
                 environment: 'server', license: 'GPL-3.0-only', mixins: ['portallinked.integration.mixins.json'],
-                depends: [portallinked: '*', minecraft: '26.3', fabricloader: '>=0.20.1']
+                depends: [portallinked: '*', minecraft: minecraftVersion, fabricloader: '>=0.20.1']
             ]))
         } else {
             def target = new File(output, loaderName == 'forge' ? 'META-INF/mods.toml' : 'META-INF/neoforge.mods.toml')

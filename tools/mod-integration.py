@@ -15,7 +15,8 @@ import tempfile
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-SERVERS = json.loads((ROOT / 'tools/mod-servers.json').read_text())
+SERVER_DEFINITIONS = ROOT / 'tools/mod-servers'
+SUPPORTED_MINECRAFT = ['26.3', *sorted(path.stem for path in SERVER_DEFINITIONS.glob('*.json'))]
 
 
 def run_logged(command, cwd, log, timeout=360):
@@ -37,10 +38,12 @@ def run_logged(command, cwd, log, timeout=360):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--loader', choices=SERVERS, required=True)
+    parser.add_argument('--loader', choices=['fabric', 'neoforge', 'forge'], required=True)
+    parser.add_argument('--minecraft', choices=SUPPORTED_MINECRAFT, default='26.3')
     parser.add_argument('--scenario', choices=['blocked-return', 'dimension-identifiers'])
     parser.add_argument('--accept-eula', action='store_true')
     parser.add_argument('--cache', type=Path, default=ROOT / 'build/mod-integration-cache')
+    parser.add_argument('--sync-chunk-writes', choices=['true', 'false'], default='true')
     parser.add_argument('--java', default=str(Path(os.environ['JAVA_HOME']) / 'bin/java') if 'JAVA_HOME' in os.environ else 'java')
     args = parser.parse_args()
     if not args.accept_eula:
@@ -49,9 +52,17 @@ def main():
     if java is None:
         raise RuntimeError('Java 25 is required')
     loader = args.loader
-    definition = SERVERS[loader]
-    module = ROOT / loader / '26.3'
-    jar = module / f'build/libs/portallinked-{loader}-1.1.0+26.3.jar'
+    minecraft = args.minecraft
+    definitions = ROOT / 'tools/mod-servers.json' if minecraft == '26.3' else SERVER_DEFINITIONS / (minecraft + '.json')
+    servers = json.loads(definitions.read_text())
+    if loader not in servers:
+        parser.error(f'{loader} has no pinned native server for Minecraft {minecraft}')
+    definition = servers[loader]
+    if definition['minecraft'] != minecraft:
+        raise RuntimeError('Server definition targets a different Minecraft version')
+    module = ROOT / loader / minecraft
+    mod_version = definition.get('mod_version', '1.1.0')
+    jar = module / f'build/libs/portallinked-{loader}-{mod_version}+{minecraft}.jar'
     fixture = module / f'build/libs/portallinked-integration-{loader}-1.jar'
     if not jar.is_file() or not fixture.is_file():
         raise RuntimeError(f'First run ./gradlew build integrationFixture in {module}')
@@ -86,7 +97,8 @@ def main():
         f'server-ip=127.0.0.1\nserver-port={port}\nonline-mode=false\nenforce-secure-profile=false\n'
         f'level-type=minecraft:flat\ngenerator-settings={generator}\nlevel-seed=123456789\n'
         'generate-structures=false\nview-distance=2\nsimulation-distance=2\n'
-        'pause-when-empty-seconds=-1\nmax-tick-time=300000\n')
+        'pause-when-empty-seconds=-1\nmax-tick-time=300000\n'
+        f'sync-chunk-writes={args.sync_chunk_writes}\n')
     digest = hashlib.sha256(jar.read_bytes()).hexdigest()
     print(f'{loader} {definition["version"]} native test directory: {stage}', flush=True)
     phases = []
@@ -112,7 +124,8 @@ def main():
         print(f'Phase {phase}: {len(outcome["checks"])} checks passed', flush=True)
     if any(hashlib.sha256(path.read_bytes()).hexdigest() != digest for path in [jar, stage / 'mods' / jar.name]):
         raise RuntimeError('Runtime artifact changed during integration')
-    report = {'loader': loader, 'scenario': args.scenario, 'server': definition, 'jar_sha256': digest, 'phases': phases,
+    report = {'loader': loader, 'minecraft': minecraft, 'sync_chunk_writes': args.sync_chunk_writes == 'true',
+              'scenario': args.scenario, 'server': definition, 'jar_sha256': digest, 'phases': phases,
               'passed': sum(len(phase['checks']) for phase in phases), 'stage': str(stage)}
     (work / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps({'loader': loader, 'passed': report['passed'], 'jar_sha256': digest}), flush=True)

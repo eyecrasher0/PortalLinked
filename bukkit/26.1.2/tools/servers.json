@@ -1,0 +1,32 @@
+{
+  "paper": {
+    "kind": "paperclip",
+    "version": "26.1.2-74",
+    "url": "https://fill-data.papermc.io/v1/objects/1d70b1dab9cf4a6de615209a536f3a45a2186240253c428213ce2188ab95e5f7/paper-26.1.2-74.jar",
+    "sha256": "1d70b1dab9cf4a6de615209a536f3a45a2186240253c428213ce2188ab95e5f7"
+  },
+  "purpur": {
+    "kind": "paperclip",
+    "version": "26.1.2-2592",
+    "url": "https://api.purpurmc.org/v2/purpur/26.1.2/2592/download",
+    "sha256": "d88e3826a7f3ad3cb4b07be02fc732ba732bf1a1b113d96b605e9f8d1d119608"
+  },
+  "folia": {
+    "kind": "paperclip",
+    "version": "26.1.2-8",
+    "url": "https://fill-data.papermc.io/v1/objects/607afd1c3320008e1ffd2eaee6780ace4419d5f8c527b75e79f259be79ebf57b/folia-26.1.2-8.jar",
+    "sha256": "607afd1c3320008e1ffd2eaee6780ace4419d5f8c527b75e79f259be79ebf57b"
+  },
+  "spigot": {
+    "kind": "buildtools",
+    "version": "26.1.2",
+    "buildtools_url": "https://hub.spigotmc.org/jenkins/job/BuildTools/201/artifact/target/BuildTools.jar",
+    "buildtools_sha256": "81ed06f5ce5fb705b558bf9b3cc2c5c53cdd9742406c5338c452faa13a1e1c24",
+    "refs": {
+      "BuildData": "1766f29a5430bb246f77e2fe24debb93a26a587d",
+      "Bukkit": "b5342f1ad2869a496f29d1d320744c00b161a162",
+      "CraftBukkit": "690a40233e2e171d94e2b99577b2b55b10d76d81",
+      "Spigot": "566f9723ddc5625b20aaa5f7acee9e8328ba5399"
+    }
+  }
+}

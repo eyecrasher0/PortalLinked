@@ -29,6 +29,9 @@ versions are Fabric Loader 0.20.1, NeoForge 26.3.0.102 and Forge 66.1.5.
 This release targets Minecraft 26.3; older Minecraft versions are not included.
 Folia is verified against its 26.3 build 6 alpha and uses region/entity schedulers.
 
+Backport development and the exact-version queue are tracked in
+[BACKPORTS.md](BACKPORTS.md); planned targets are not released compatibility claims.
+
 ## Behavior
 
 - Remembers each player's last successful Overworld–Nether portal crossing.

@@ -1,0 +1,1578 @@
+{
+  "schema": 1,
+  "checked_on": "2026-11-13",
+  "scope": "Exact stable Java releases. Availability is upstream SDK availability, not a claim of completed PortalLinked compatibility.",
+  "unresolved_requests": [
+    {
+      "requested": "1.7.0",
+      "reason": "No Java release with this ID in the official Mojang manifest; asked owner whether1.7.10 was intended."
+    }
+  ],
+  "sources": {
+    "minecraft": "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+    "paper": "https://fill.papermc.io/v3/projects/paper",
+    "folia": "https://fill.papermc.io/v3/projects/folia",
+    "purpur": "https://api.purpurmc.org/v2/purpur",
+    "fabric": "https://meta.fabricmc.net/v2/versions/game",
+    "forge": "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml",
+    "neoforge": "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml",
+    "neoforge_1_20_1": "https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml",
+    "spigot": "https://hub.spigotmc.org/versions/{minecraft}.json"
+  },
+  "targets": [
+    {
+      "minecraft": "1.8.9",
+      "java": 8,
+      "platforms": {
+        "paper": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "purpur": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": false,
+          "reason": "Official Spigot version endpoint returns404 for this exact release."
+        },
+        "fabric": {
+          "available": false,
+          "reason": "Not in the official Fabric stable-game index."
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.8.9-11.15.1.2318-1.8.9",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.12.2",
+      "java": 8,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "be360cc298a06b5355ecd057f5b1feb894a73f0f",
+            "Bukkit": "558fdf5f54b0f527cd48903daf9368ac4b862876",
+            "CraftBukkit": "f4830a1687f37a4ee7c0bd08a30d925fbe0f9349",
+            "Spigot": "79a30d7d26b9078dbf6071cbbfa060673bf117b2"
+          }
+        },
+        "fabric": {
+          "available": false,
+          "reason": "Not in the official Fabric stable-game index."
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.12.2-14.23.5.2864",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.16.5",
+      "java": 8,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "f0a5ed1aeff8156ba4afa504e190c838dd1af50c",
+            "Bukkit": "7e29f7654411f0a17ebbcc2c3f6a7dfe93bff39e",
+            "CraftBukkit": "af1a23291836523344a6ab0c233c37efc763ed86",
+            "Spigot": "9fb885e86def1d9d86e25233c9b5a4de45b7a09d"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.16.5-36.2.42",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.17",
+      "java": 16,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "3cec511b16ffa31cb414997a14be313716882e12",
+            "Bukkit": "fc92ca8dd3b37dbc440de9d61575af17226cb8f0",
+            "CraftBukkit": "ec116f636d55eccae1d5bb0b716b1db3b245ccab",
+            "Spigot": "a483d2c9d916d4d05ad0923f2c9472e3bac64bc8"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": false,
+          "reason": "No Forge SDK published for this exact release."
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.17.1",
+      "java": 16,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "a4785704979a469daa2b7f6826c84e7fe886bb03",
+            "Bukkit": "d32e3c764edd6a449ddd220720185d266c2193f9",
+            "CraftBukkit": "0ab8487122776d0929840279fc4dc5edd33db072",
+            "Spigot": "38929296b008a62a7a8532c46550aa493e2246a8"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.17.1-37.1.1",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.18",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "059e48d0b4666138c4a8330ee38310d74824a848",
+            "Bukkit": "ffd8b28939b4ec84855f8a10c93463ec113def13",
+            "CraftBukkit": "4f5d59a4d6e781168e3d78183443a068d4b01705",
+            "Spigot": "dbf493829eb4bf37ff6492e725058424138cc651"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.18-38.0.17",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.18.1",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "f31eb04b918592f66c6edd17c9b5998383581ae5",
+            "Bukkit": "0edc0e044dc242307f584e6e89b0644756a03b36",
+            "CraftBukkit": "2c1e49984ef3f75f631c95ce0547031c887c30f8",
+            "Spigot": "699290cdcc3d7721a3031b395d8693a9a11d8f6d"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.18.1-39.1.2",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.18.2",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "641cb0c939c7c2a3c4b42f2fd7bca7c8b34254ae",
+            "Bukkit": "6a039faf7488beba29527a112404cbab84d0cbd3",
+            "CraftBukkit": "10ba1beb64286206f4edc8d4b44c6472639d044e",
+            "Spigot": "b0819150028ec7233960ec622a4b1ba57f102047"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.18.2-40.3.12",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.19",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "e6ebde42e39100b18ca0265596b04f557b2b27cc",
+            "Bukkit": "23f557a0a005db45e17f16e58c8f0a583682be79",
+            "CraftBukkit": "ef094640942637ee78314416474425a1a53b2a64",
+            "Spigot": "14a2382f7da41c880fdbf64536fb222df98dc111"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.19-41.1.0",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.19.1",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "1a32ff0d74aec7d92025bebc5f7b40fc02040ea4",
+            "Bukkit": "caa7c4866ac49b04808b75284715543f221649a5",
+            "CraftBukkit": "1e3bf58cdb2b099308d94dbc34d950155ee83ac3",
+            "Spigot": "21831450a43f67f1730dd0dec987c7a7ff19caa9"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.19.1-42.0.9",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.19.2",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "d96ad8e1e64b7c35bb632339c23621353be1f028",
+            "Bukkit": "38866413a790619d8d8873de5b62f807947b81f6",
+            "CraftBukkit": "19df23aa2e83d966efbc0674d5ac24cab56a1346",
+            "Spigot": "6198b5ae88da3f3650123abc22e6363a7543faa9"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.19.2-43.5.2",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.19.3",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "6dfa7428ba5c4275211f739316cd2a5f9644505d",
+            "Bukkit": "fb50924403915ad24e9389361a10dfbf53c1e696",
+            "CraftBukkit": "bd29f413c1c7ed34af01e14cc7c5b1999a534fc6",
+            "Spigot": "454acb73c87f8249040c2a4a434125e799237089"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.19.3-44.1.23",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.19.4",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": true,
+          "state": "planned"
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "4d9436f7b66190ad21fe4e3975b73a36b7ad2a7e",
+            "Bukkit": "5dbedae1cbbc70791dcfc374c4c8da35db309a44",
+            "CraftBukkit": "5a5e43ee6bab92419f7a7cfdb39af61a74b226ab",
+            "Spigot": "7d7b241e353e86ee90ad025dab0262b050a6fe4a"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.19.4-45.4.5",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.20",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "221903b51701960ac778d8641b31cebcf411caa8",
+            "Bukkit": "69c7ce23f295a5bf1b1b7128bc1daece4ead768e",
+            "CraftBukkit": "3f9263ba3a726846a9466e12da95d73229af4ad9",
+            "Spigot": "d2eba2c820b52b742eb542c6d2c4d76e3d743570"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.20-46.0.14",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": false,
+          "reason": "No NeoForge SDK published for this exact release."
+        }
+      }
+    },
+    {
+      "minecraft": "1.20.1",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": true,
+          "state": "planned"
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "221903b51701960ac778d8641b31cebcf411caa8",
+            "Bukkit": "69c7ce23f295a5bf1b1b7128bc1daece4ead768e",
+            "CraftBukkit": "3f9263ba3a726846a9466e12da95d73229af4ad9",
+            "Spigot": "d2eba2c820b52b742eb542c6d2c4d76e3d743570"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.20.1-47.4.29",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "47.1.82",
+          "artifact": "net.neoforged:forge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.20.2",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": true,
+          "state": "planned"
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "172197ceb99364701937947ea7fc424ecf1bb694",
+            "Bukkit": "ef888c0741538690fb9adff0b401cfc868cb62ff",
+            "CraftBukkit": "d485cdeaf848cae907ed270f0f39f619af209ac9",
+            "Spigot": "2888990a11a5829db247c46438f43505fcd8dbb9"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.20.2-48.1.0",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "20.2.93",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.20.3",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "purpur": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "a9c23e0aa2429445ce39109e093bce0d89a14ab3",
+            "Bukkit": "0a850d95d96991609f01572b470256bb348696aa",
+            "CraftBukkit": "38b1f49d9546975e24e41421d8473dc676c9fbbc",
+            "Spigot": "b754dccf0c43518a34701b863125fde5a9fbbd32"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.20.3-49.0.2",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "20.3.8-beta",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.20.4",
+      "java": 17,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": true,
+          "state": "planned"
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "a9c23e0aa2429445ce39109e093bce0d89a14ab3",
+            "Bukkit": "0a850d95d96991609f01572b470256bb348696aa",
+            "CraftBukkit": "38b1f49d9546975e24e41421d8473dc676c9fbbc",
+            "Spigot": "b754dccf0c43518a34701b863125fde5a9fbbd32"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.20.4-49.2.13",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "20.4.253",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.20.5",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "32d1baf2f4e0e7cd1ac22c7b2f6eb4c387e8a343",
+            "Bukkit": "376e37db4b23b1fc18f93d3aeccaa40b8bb16ed2",
+            "CraftBukkit": "65247583f8c04171632caab7487c8aabceacd5c8",
+            "Spigot": "f6a48054762b87d7c8568e567127b883241c592b"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": false,
+          "reason": "No Forge SDK published for this exact release."
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "20.5.21-beta",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.20.6",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": true,
+          "state": "planned"
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "32d1baf2f4e0e7cd1ac22c7b2f6eb4c387e8a343",
+            "Bukkit": "376e37db4b23b1fc18f93d3aeccaa40b8bb16ed2",
+            "CraftBukkit": "65247583f8c04171632caab7487c8aabceacd5c8",
+            "Spigot": "f6a48054762b87d7c8568e567127b883241c592b"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.20.6-50.2.15",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "20.6.144",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "533b02cd6ba8dbf8c8607250b02bf2d8c36421e8",
+            "Bukkit": "bb4e97c60d2978a1d008f21295a5234228341e14",
+            "CraftBukkit": "19bf846569f71fa9b64bf50b43154945124e44bc",
+            "Spigot": "a759b629cbf86401aab56b8c3f21a635e9e76c15"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.21-51.0.33",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.0.167",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.1",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "533b02cd6ba8dbf8c8607250b02bf2d8c36421e8",
+            "Bukkit": "bb4e97c60d2978a1d008f21295a5234228341e14",
+            "CraftBukkit": "19bf846569f71fa9b64bf50b43154945124e44bc",
+            "Spigot": "a759b629cbf86401aab56b8c3f21a635e9e76c15"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.21.1-52.1.21",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.1.266",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.2",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "purpur": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "0c5ebabcb4ce41f69a7d2319b468b6faee434038",
+            "Bukkit": "ed0ec4893b5f755e2493e652091bba42dc7ad742",
+            "CraftBukkit": "561ceb92b22c58ad05c546883cd320da4498d0b9",
+            "Spigot": "60c9969b3e34b1a7c8f06e358241399b5f47bfb1"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": false,
+          "reason": "No Forge SDK published for this exact release."
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.2.1-beta",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.3",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "0c5ebabcb4ce41f69a7d2319b468b6faee434038",
+            "Bukkit": "ed0ec4893b5f755e2493e652091bba42dc7ad742",
+            "CraftBukkit": "561ceb92b22c58ad05c546883cd320da4498d0b9",
+            "Spigot": "60c9969b3e34b1a7c8f06e358241399b5f47bfb1"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.21.3-53.1.16",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.3.100",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.4",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": true,
+          "state": "planned"
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "686446e5669a9aab7d35179fd989032560f289fc",
+            "Bukkit": "a3d67ef041c520a1225a6ce4bd8d777ad23886b0",
+            "CraftBukkit": "fb3f2b6452a010c4511c59cdee78ae5803cc0b7a",
+            "Spigot": "73860e064edc2599604dd46c0bc5202283e57e9c"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.21.4-54.1.22",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.4.161",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.5",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": true,
+          "state": "planned"
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "9b48cd40193ae9f0cebbadce39052a242485eb4c",
+            "Bukkit": "c80061286e3bb33d611e1034fe6794ab98256582",
+            "CraftBukkit": "dacd062dd1c6d6a06f0774a837ea18ddf89edb6d",
+            "Spigot": "270012a3149d0a6e4200bcbb8dde44fc63dbe863"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.21.5-55.1.18",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.5.101",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.6",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": true,
+          "state": "planned"
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "281ac0de7a76d808753ede97d11b034bc801b63d",
+            "Bukkit": "263d8147c921a2e04d6713c792622c9c74f00a26",
+            "CraftBukkit": "98f7fa28ed76204d2d290abb1c8b8083ed1787fb",
+            "Spigot": "d5ca3f833bb6128d88eaab2211b9c203953d23db"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.21.6-56.0.9",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.6.20-beta",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.7",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "851ec26f86db9951c78dd8868e0b474c2290ecd2",
+            "Bukkit": "9ef6c8db34776b9d661a91e2d44c0a2d4e43e6cb",
+            "CraftBukkit": "65f1f1130a7052e7c8018e3bd579470edf206833",
+            "Spigot": "7c52c662ccee93e52a21c54a1b8f93721e4ec773"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.21.7-57.0.3",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.7.25-beta",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.8",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": true,
+          "state": "planned"
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "851ec26f86db9951c78dd8868e0b474c2290ecd2",
+            "Bukkit": "9ef6c8db34776b9d661a91e2d44c0a2d4e43e6cb",
+            "CraftBukkit": "65f1f1130a7052e7c8018e3bd579470edf206833",
+            "Spigot": "7c52c662ccee93e52a21c54a1b8f93721e4ec773"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.21.8-58.1.26",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.8.57",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.9",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "6cf716da198f9d94f9c36e36d9be6417c5c24824",
+            "Bukkit": "54dd32b56af7278dc8128a0b2fb54f91dca6b433",
+            "CraftBukkit": "5c73aaf1ef20a463bc6b0079bcb585b14e1968b5",
+            "Spigot": "6e369ba56125a52a628785448c15afa062a76932"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.21.9-59.0.5",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.9.16-beta",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.10",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "planned"
+        },
+        "purpur": {
+          "available": true,
+          "state": "planned"
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "planned",
+          "refs": {
+            "BuildData": "6cf716da198f9d94f9c36e36d9be6417c5c24824",
+            "Bukkit": "54dd32b56af7278dc8128a0b2fb54f91dca6b433",
+            "CraftBukkit": "5c73aaf1ef20a463bc6b0079bcb585b14e1968b5",
+            "Spigot": "6e369ba56125a52a628785448c15afa062a76932"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "planned"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.21.10-60.1.18",
+          "state": "planned"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.10.64",
+          "artifact": "net.neoforged:neoforge",
+          "state": "planned"
+        }
+      }
+    },
+    {
+      "minecraft": "1.21.11",
+      "java": 21,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "building"
+        },
+        "purpur": {
+          "available": true,
+          "state": "building"
+        },
+        "folia": {
+          "available": true,
+          "state": "building"
+        },
+        "spigot": {
+          "available": true,
+          "state": "building",
+          "refs": {
+            "BuildData": "beeae81d9ac5521b767517cee44d0c345a8be3fb",
+            "Bukkit": "9daba7255f227a8f9cf3a02a3df0a2285556be58",
+            "CraftBukkit": "d74c5d880bd53a6cb44e74eaa5a9167fa07a82c2",
+            "Spigot": "56165cab196da9518bcb05be7183420eaf261410"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "building"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "1.21.11-61.2.5",
+          "state": "building"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "21.11.48",
+          "artifact": "net.neoforged:neoforge",
+          "state": "building"
+        }
+      }
+    },
+    {
+      "minecraft": "26.1",
+      "java": 25,
+      "platforms": {
+        "paper": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "purpur": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "building",
+          "refs": {
+            "BuildData": "1766f29a5430bb246f77e2fe24debb93a26a587d",
+            "Bukkit": "b5342f1ad2869a496f29d1d320744c00b161a162",
+            "CraftBukkit": "690a40233e2e171d94e2b99577b2b55b10d76d81",
+            "Spigot": "566f9723ddc5625b20aaa5f7acee9e8328ba5399"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "building"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "26.1-62.0.9",
+          "state": "building"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "26.1.0.19-beta",
+          "artifact": "net.neoforged:neoforge",
+          "state": "building"
+        }
+      }
+    },
+    {
+      "minecraft": "26.1.1",
+      "java": 25,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "building"
+        },
+        "purpur": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "folia": {
+          "available": false,
+          "reason": "No official server build published for this exact Minecraft release in the upstream index."
+        },
+        "spigot": {
+          "available": true,
+          "state": "building",
+          "refs": {
+            "BuildData": "1766f29a5430bb246f77e2fe24debb93a26a587d",
+            "Bukkit": "b5342f1ad2869a496f29d1d320744c00b161a162",
+            "CraftBukkit": "690a40233e2e171d94e2b99577b2b55b10d76d81",
+            "Spigot": "566f9723ddc5625b20aaa5f7acee9e8328ba5399"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "building"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "26.1.1-63.0.2",
+          "state": "building"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "26.1.1.15-beta",
+          "artifact": "net.neoforged:neoforge",
+          "state": "building"
+        }
+      }
+    },
+    {
+      "minecraft": "26.1.2",
+      "java": 25,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "building"
+        },
+        "purpur": {
+          "available": true,
+          "state": "building"
+        },
+        "folia": {
+          "available": true,
+          "state": "building"
+        },
+        "spigot": {
+          "available": true,
+          "state": "building",
+          "refs": {
+            "BuildData": "1766f29a5430bb246f77e2fe24debb93a26a587d",
+            "Bukkit": "b5342f1ad2869a496f29d1d320744c00b161a162",
+            "CraftBukkit": "690a40233e2e171d94e2b99577b2b55b10d76d81",
+            "Spigot": "566f9723ddc5625b20aaa5f7acee9e8328ba5399"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "building"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "26.1.2-64.1.6",
+          "state": "building"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "26.1.2.126",
+          "artifact": "net.neoforged:neoforge",
+          "state": "building"
+        }
+      }
+    },
+    {
+      "minecraft": "26.2",
+      "java": 25,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "native-verified"
+        },
+        "purpur": {
+          "available": true,
+          "state": "native-verified"
+        },
+        "folia": {
+          "available": true,
+          "state": "building"
+        },
+        "spigot": {
+          "available": true,
+          "state": "building",
+          "refs": {
+            "BuildData": "41bd187bd86ec1444d2dc9e0188e53559cf870b3",
+            "Bukkit": "a176036de14dbd873fcfed8f3111723cdb34e12c",
+            "CraftBukkit": "96ae8cd2f4f8bfcee57193455d0714f2bd4fcd1f",
+            "Spigot": "8db49a2b72ef138a615856934957da2978f72f08"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "native-verified"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "26.2-65.1.6",
+          "state": "native-verified"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "26.2.0.93",
+          "artifact": "net.neoforged:neoforge",
+          "state": "native-verified"
+        }
+      }
+    },
+    {
+      "minecraft": "26.3",
+      "java": 25,
+      "platforms": {
+        "paper": {
+          "available": true,
+          "state": "released"
+        },
+        "purpur": {
+          "available": true,
+          "state": "released"
+        },
+        "folia": {
+          "available": true,
+          "state": "released"
+        },
+        "spigot": {
+          "available": true,
+          "state": "released",
+          "refs": {
+            "BuildData": "39e62795554dcf6b62e922bc061705b3dc228f88",
+            "Bukkit": "29025a7ed5789807e11158a2263316b13ed50c3b",
+            "CraftBukkit": "e89124d3e8e9585e75ceb7f9a4daba133788e5bd",
+            "Spigot": "bed90fca391bc35f0dbbcdc7ce5d7bb28e533681"
+          }
+        },
+        "fabric": {
+          "available": true,
+          "state": "released"
+        },
+        "forge": {
+          "available": true,
+          "sdk": "26.3-66.1.8",
+          "state": "released"
+        },
+        "neoforge": {
+          "available": true,
+          "sdk": "26.3.0.103",
+          "artifact": "net.neoforged:neoforge",
+          "state": "released"
+        }
+      }
+    }
+  ]
+}
