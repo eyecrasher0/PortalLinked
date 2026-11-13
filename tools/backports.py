@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--json', action='store_true')
     parser.add_argument('--accept-eula', action='store_true')
     parser.add_argument('--cache', type=Path)
+    parser.add_argument('--installer-java', help='optional separate JDK for a mod-loader installer')
     args = parser.parse_args()
     manifest = json.loads((ROOT / 'tools/backport-targets.json').read_text())
     if manifest['schema'] != 1:
@@ -67,6 +68,10 @@ def main():
             command = [sys.executable, 'tools/mod-integration.py', '--loader', loader,
                        '--minecraft', args.minecraft, '--accept-eula']
             cwd = ROOT
+        if args.installer_java:
+            if bukkit:
+                parser.error('--installer-java is only used by mod loaders')
+            command += ['--installer-java', args.installer_java]
         if args.cache:
             command += ['--cache', str(args.cache.resolve())]
         if args.minecraft != '26.3':

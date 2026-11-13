@@ -1,4 +1,4 @@
-// SPDX-License-ResourceLocation: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 EyeCrasher
 package dev.eyecrasher.portallinked;
 
@@ -19,7 +19,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -93,7 +93,7 @@ public final class PortalLinkedServer {
                 if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString())
                     throw new IllegalArgumentException("Dimension names must be strings");
                 String name = element.getAsString();
-                if (name.indexOf(':') <= 0 || name.endsWith(":") || ResourceLocation.tryParse(name) == null)
+                if (name.indexOf(':') <= 0 || name.endsWith(":") || Identifier.tryParse(name) == null)
                     throw new IllegalArgumentException("Use complete dimension identifiers");
                 excluded.add(name);
             }
@@ -131,7 +131,7 @@ public final class PortalLinkedServer {
         PortalPair pair = data.portallinked$getPair();
         if (pending == null || pair == null || pending.generation() != generation
                 || !activePair(pending.sourceLevel(), target)) return null;
-        NativePortal destination = pair.returnPortal(pending.departure(), target.dimension().location().toString()).orElse(null);
+        NativePortal destination = pair.returnPortal(pending.departure(), target.dimension().identifier().toString()).orElse(null);
         if (destination != null && destination.usable(target)) {
             debug("Returning " + player.getScoreboardName() + " to their saved portal.");
             return destination;
@@ -161,8 +161,8 @@ public final class PortalLinkedServer {
     }
 
     private static boolean activePair(ServerLevel from, ServerLevel to) {
-        return settings.enabled && !settings.excluded.contains(from.dimension().location().toString())
-                && !settings.excluded.contains(to.dimension().location().toString())
+        return settings.enabled && !settings.excluded.contains(from.dimension().identifier().toString())
+                && !settings.excluded.contains(to.dimension().identifier().toString())
                 && ((from.dimension() == Level.OVERWORLD && to.dimension() == Level.NETHER)
                 || (from.dimension() == Level.NETHER && to.dimension() == Level.OVERWORLD));
     }

@@ -2,6 +2,7 @@ import groovy.json.JsonOutput
 
 def loaderName = projectDir.parentFile.name
 def minecraftVersion = projectDir.name
+def fixtureAccessors = file("../../mod-common/${minecraftVersion}/src/integration/java/dev/eyecrasher/fixture/mixin/ConnectionAccess.java").isFile()
 def generatedMetadata = layout.buildDirectory.dir('generated/integration-metadata')
 
 sourceSets {
@@ -12,13 +13,17 @@ sourceSets {
 }
 
 tasks.register('integrationMetadata') {
+    inputs.property 'minecraft', minecraftVersion
+    inputs.property 'loader', loaderName
+    inputs.property 'fixtureAccessors', fixtureAccessors
     outputs.dir generatedMetadata
     doLast {
         def output = generatedMetadata.get().asFile
         output.mkdirs()
         new File(output, 'portallinked.integration.mixins.json').text = JsonOutput.prettyPrint(JsonOutput.toJson([
             required: true, minVersion: '0.8', package: 'dev.eyecrasher.fixture.mixin',
-            compatibilityLevel: 'JAVA_21', server: ['ServerTickFixtureMixin', 'CancelTeleportFixtureMixin'],
+            compatibilityLevel: 'JAVA_21', server: ['ServerTickFixtureMixin', 'CancelTeleportFixtureMixin']
+                    + (fixtureAccessors ? ['ConnectionAccess', 'PlayerListAccess'] : []),
             injectors: [defaultRequire: 1]
         ]))
         if (loaderName == 'fabric') {

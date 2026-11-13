@@ -44,6 +44,7 @@ def main():
     parser.add_argument('--accept-eula', action='store_true')
     parser.add_argument('--cache', type=Path, default=ROOT / 'build/mod-integration-cache')
     parser.add_argument('--sync-chunk-writes', choices=['true', 'false'], default='true')
+    parser.add_argument('--installer-java', help='optional separate JDK for the upstream installer')
     parser.add_argument('--java', default=str(Path(os.environ['JAVA_HOME']) / 'bin/java') if 'JAVA_HOME' in os.environ else 'java')
     args = parser.parse_args()
     if not args.accept_eula:
@@ -51,6 +52,9 @@ def main():
     java = shutil.which(args.java)
     if java is None:
         raise RuntimeError('Java 25 is required')
+    installer_java = shutil.which(args.installer_java) if args.installer_java else java
+    if installer_java is None:
+        parser.error('Installer Java executable was not found')
     loader = args.loader
     minecraft = args.minecraft
     definitions = ROOT / 'tools/mod-servers.json' if minecraft == '26.3' else SERVER_DEFINITIONS / (minecraft + '.json')
@@ -77,7 +81,7 @@ def main():
             raise RuntimeError('Loader SDK checksum mismatch')
         launcher.write_bytes(payload)
     if definition['kind'] == 'installer' and not (cache / definition['args']).is_file():
-        run_logged([java, '-jar', str(launcher), '--installServer', str(cache)], cache, cache / 'installer.log')
+        run_logged([installer_java, '-jar', str(launcher), '--installServer', str(cache)], cache, cache / 'installer.log')
     work = module / 'build/integration'
     work.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix='run-', dir=work))

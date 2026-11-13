@@ -1,4 +1,4 @@
-// SPDX-License-ResourceLocation: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 EyeCrasher
 package dev.eyecrasher.fixture;
 
@@ -31,7 +31,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.entity.Entity;
@@ -99,6 +99,20 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
             case "pending-contact" -> pendingContacts();
             case "swept-contact" -> sweptContacts();
             case "blocked-return" -> blockedReturns();
+            case "teleport-lock" -> teleportLock().thenCompose(v -> reloadRace()).thenCompose(v -> portalEffects())
+                    .thenCompose(v -> immediateLogout(true));
+            case "source-exit" -> sourceExits().thenCompose(v -> pendingContacts()).thenCompose(v -> cancelledReturnContact())
+                    .thenCompose(v -> teleportLock()).thenCompose(v -> movementRegression())
+                    .thenCompose(v -> scaledContact(Axis.X)).thenCompose(v -> scaledContact(Axis.Z))
+                    .thenCompose(v -> immediateLogout(true));
+            case "departure-contact" -> departureContacts().thenCompose(v -> adjacentArrival(Axis.X))
+                    .thenCompose(v -> adjacentArrival(Axis.Z));
+            case "native-policy" -> frame(overworld, 832, 64, 0, Axis.X, 4, 5)
+                    .thenCompose(v -> frame(overworld, 800, 64, 0, Axis.X, 2, 3))
+                    .thenCompose(v -> frame(nether, 100, 64, 0, Axis.Z, 5, 6))
+                    .thenCompose(v -> bot("NativePolicy", UUID.randomUUID(), overworld, 832.5, 64, .5))
+                    .thenCompose(probe -> travel(probe, nether, true).thenCompose(v -> travel(probe, overworld, true))
+                            .thenCompose(v -> blockedEntry(probe)));
             case "teleport-lock" -> teleportLock().thenCompose(v -> reloadRace()).thenCompose(v -> portalEffects())
                     .thenCompose(v -> immediateLogout(true));
             case "source-exit" -> sourceExits().thenCompose(v -> pendingContacts()).thenCompose(v -> cancelledReturnContact())
@@ -607,7 +621,7 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                         .thenCompose(v -> relocate(probe, new Location(nether, 1000.5, 64, .5)))
                         .thenCompose(v -> travel(probe, overworld, true))
                         .thenCompose(v -> player(probe, () -> {
-                            var advancement = probe.level().getServer().getAdvancements().get(ResourceLocation.parse("minecraft:nether/fast_travel"));
+                            var advancement = probe.level().getServer().getAdvancements().get(Identifier.parse("minecraft:nether/fast_travel"));
                             check(advancement != null && probe.getAdvancements().getOrStartProgress(advancement).isDone(),
                                     "long native exit after remembered entry awards the Nether travel advancement");
                             return null;
@@ -705,17 +719,37 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     }
 
     private CompletableFuture<Void> blockedEntry(ServerPlayer probe) {
+        // Folia1.21.11's native async path does not consult this rule. Prove the
+        // baseline directly, then verify PortalLinked declines personal routing
+        // and recording rather than changing the engine's natural journey.
         return player(probe, () -> {
+            check(probe.level().getWorld().equals(overworld), "denied-entry probe starts in the Overworld");
             byte[] before = data(probe);
             probe.level().getGameRules().set(GameRules.ALLOW_ENTERING_NETHER_USING_PORTALS, false, null);
-            trigger(probe);
             return before;
-        }).thenCompose(before -> delay(probe, 4).thenCompose(v -> player(probe, () -> {
-            check(probe.level().getWorld().equals(overworld), "remembered Folia return honors native Nether-entry gamerule");
-            check(Arrays.equals(before, data(probe)), "denied Nether entry preserves existing saved pair");
-            probe.level().getGameRules().set(GameRules.ALLOW_ENTERING_NETHER_USING_PORTALS, true, null);
-            return null;
-        })));
+        }).thenCompose(before -> bot("NativePolicyControl", UUID.randomUUID(), overworld, 800.5, 64, .5)
+                .thenCompose(control -> player(control, () -> {
+                    ServerLevel target = ((org.bukkit.craftbukkit.CraftWorld) nether).getHandle();
+                    check(!control.level().isAllowedToEnterPortal(target), "native rule predicate denies Nether entry");
+                    check(control.netherPortalLogicAsync(control.blockPosition()), "unmodified Folia1.21.11 native async path accepts the denied route");
+                    return null;
+                }).thenCompose(v -> arrived(control, nether, false, null, 0))
+                        .thenCompose(v -> player(control, () -> {
+                            check(data(control) == null, "direct native control does not invent a PortalLinked pair");
+                            return null;
+                        })))
+                .thenCompose(v -> player(probe, () -> { trigger(probe); return null; }))
+                .thenCompose(v -> arrived(probe, nether, false, before, 0))
+                .thenCompose(v -> player(probe, () -> {
+                    check(Arrays.equals(before, data(probe)), "denied personal route preserves existing pair despite native travel");
+                    return null;
+                }))
+                .thenCompose(v -> region(overworld, 832, 0, () -> {
+                    ((org.bukkit.craftbukkit.CraftWorld) overworld).getHandle().getGameRules()
+                            .set(GameRules.ALLOW_ENTERING_NETHER_USING_PORTALS, true, null);
+                    return null;
+                }))
+                .thenCompose(v -> relocate(probe, new Location(overworld, 832.5, 64, .5))));
     }
 
     private CompletableFuture<Void> cancellationRegression(boolean existingPair) {
@@ -974,7 +1008,7 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                 @SuppressWarnings("unchecked") Map<String, ServerPlayer> names = (Map<String, ServerPlayer>) nameField.get(server.getPlayerList()); names.put(name.toLowerCase(Locale.ROOT), player);
                 player.getBukkitEntity().setPortalCooldown(300);
                 level.addNewPlayer(player);
-                level.getCurrentWorldData().addConnection(player);
+                level.getCurrentWorldData().connections.add(connection);
                 return player;
             } catch (ReflectiveOperationException ex) { throw new AssertionError(ex); }
         });

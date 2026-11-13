@@ -1,11 +1,11 @@
-// SPDX-License-ResourceLocation: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 EyeCrasher
 package dev.eyecrasher.portallinked;
 
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.BlockUtil;
@@ -19,7 +19,7 @@ import net.minecraft.world.phys.AABB;
 /** Identity of a complete portal interior, independent of the touched block. */
 public record NativePortal(String world, int x, int y, int z, Direction.Axis axis, int width, int height) {
     public NativePortal {
-        if (world == null || world.indexOf(':') <= 0 || world.endsWith(":") || ResourceLocation.tryParse(world) == null)
+        if (world == null || world.indexOf(':') <= 0 || world.endsWith(":") || Identifier.tryParse(world) == null)
             throw new IllegalArgumentException("Portal dimension");
         if ((axis != Direction.Axis.X && axis != Direction.Axis.Z) || width < 2 || width > 21
                 || height < 3 || height > 21 || Math.abs((long) x) > 29_999_984
@@ -29,7 +29,7 @@ public record NativePortal(String world, int x, int y, int z, Direction.Axis axi
     public BlockUtil.FoundRectangle rectangle() { return new BlockUtil.FoundRectangle(new BlockPos(x, y, z), width, height); }
 
     public boolean usable(ServerLevel level) {
-        if (!world.equals(level.dimension().location().toString()) || y <= level.getMinY()
+        if (!world.equals(level.dimension().identifier().toString()) || y <= level.getMinY()
                 || (long) y + height > level.getMaxY()) return false;
         BlockPos first = new BlockPos(x, y, z);
         BlockPos last = first.offset(axis == Direction.Axis.X ? width - 1 : 0, height - 1,
@@ -78,7 +78,7 @@ public record NativePortal(String world, int x, int y, int z, Direction.Axis axi
         for (int col = 0; col < width; col++)
             if (!obsidian(level, x + dx * col, y - 1, z + dz * col)
                     || !obsidian(level, x + dx * col, y + height, z + dz * col)) return Optional.empty();
-        return Optional.of(new NativePortal(level.dimension().location().toString(), x, y, z, axis, width, height));
+        return Optional.of(new NativePortal(level.dimension().identifier().toString(), x, y, z, axis, width, height));
     }
 
     private static boolean portal(ServerLevel level, int x, int y, int z, Direction.Axis axis) {

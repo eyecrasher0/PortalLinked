@@ -566,11 +566,14 @@
           "available": true,
           "state": "planned",
           "refs": {
-            "BuildData": "221903b51701960ac778d8641b31cebcf411caa8",
-            "Bukkit": "69c7ce23f295a5bf1b1b7128bc1daece4ead768e",
-            "CraftBukkit": "3f9263ba3a726846a9466e12da95d73229af4ad9",
-            "Spigot": "d2eba2c820b52b742eb542c6d2c4d76e3d743570"
-          }
+            "BuildData": "2881c6b6dd146126596342d4025d37a9a84a0b03",
+            "Bukkit": "b4fd213c708979090665b6c6d4253696a01c7f2a",
+            "CraftBukkit": "725545630d7c34e3d2f774040294bea120b32ae4",
+            "Spigot": "b655c57d3c1f1bd3649f43946b66d2c480e73744"
+          },
+          "actual_minecraft": "1.20",
+          "sdk_revision": "3774",
+          "upstream_metadata": "https://hub.spigotmc.org/versions/3774.json"
         },
         "fabric": {
           "available": true,
@@ -693,11 +696,14 @@
           "available": true,
           "state": "planned",
           "refs": {
-            "BuildData": "a9c23e0aa2429445ce39109e093bce0d89a14ab3",
-            "Bukkit": "0a850d95d96991609f01572b470256bb348696aa",
-            "CraftBukkit": "38b1f49d9546975e24e41421d8473dc676c9fbbc",
-            "Spigot": "b754dccf0c43518a34701b863125fde5a9fbbd32"
-          }
+            "BuildData": "58819a3c2a15e6e47ad89d32fb60d44c253491f3",
+            "Bukkit": "d9c1eb83af46e61e089cb899a24a8cc0a66e625b",
+            "CraftBukkit": "8232a74cf8d32bce37c33ff6d0cd9b688a1ef8e9",
+            "Spigot": "9d728858d26d780a91aa8e3541bcfda9de7f76dc"
+          },
+          "actual_minecraft": "1.20.3",
+          "sdk_revision": "3954",
+          "upstream_metadata": "https://hub.spigotmc.org/versions/3954.json"
         },
         "fabric": {
           "available": true,
@@ -779,11 +785,14 @@
           "available": true,
           "state": "planned",
           "refs": {
-            "BuildData": "32d1baf2f4e0e7cd1ac22c7b2f6eb4c387e8a343",
-            "Bukkit": "376e37db4b23b1fc18f93d3aeccaa40b8bb16ed2",
-            "CraftBukkit": "65247583f8c04171632caab7487c8aabceacd5c8",
-            "Spigot": "f6a48054762b87d7c8568e567127b883241c592b"
-          }
+            "BuildData": "a7f7c2118b877fde4cf0f32f1f730ffcdee8e9ee",
+            "Bukkit": "e8215ea2000b9ecfff08f46f9b02ea1aa7140915",
+            "CraftBukkit": "91b1fc3f1cf89e2591367dca1fa7362fe376f289",
+            "Spigot": "b698b49caf14f97a717afd67e13fd7ac59f51089"
+          },
+          "actual_minecraft": "1.20.5",
+          "sdk_revision": "4131",
+          "upstream_metadata": "https://hub.spigotmc.org/versions/4131.json"
         },
         "fabric": {
           "available": true,
@@ -864,11 +873,14 @@
           "available": true,
           "state": "planned",
           "refs": {
-            "BuildData": "533b02cd6ba8dbf8c8607250b02bf2d8c36421e8",
-            "Bukkit": "bb4e97c60d2978a1d008f21295a5234228341e14",
-            "CraftBukkit": "19bf846569f71fa9b64bf50b43154945124e44bc",
-            "Spigot": "a759b629cbf86401aab56b8c3f21a635e9e76c15"
-          }
+            "BuildData": "ae1e7b1e31cd3a3892bb05a6ccdcecc48c73c455",
+            "Bukkit": "4d87ffe0e73a453467fcbf44a7746621ba223de4",
+            "CraftBukkit": "682a678c82b59fbc0b438ef0a73fce0fed3da015",
+            "Spigot": "34bd42b7a40dfcb037419c7d4f7b35307ac33969"
+          },
+          "actual_minecraft": "1.21",
+          "sdk_revision": "4280",
+          "upstream_metadata": "https://hub.spigotmc.org/versions/4280.json"
         },
         "fabric": {
           "available": true,
@@ -950,11 +962,14 @@
           "available": true,
           "state": "planned",
           "refs": {
-            "BuildData": "0c5ebabcb4ce41f69a7d2319b468b6faee434038",
-            "Bukkit": "ed0ec4893b5f755e2493e652091bba42dc7ad742",
-            "CraftBukkit": "561ceb92b22c58ad05c546883cd320da4498d0b9",
-            "Spigot": "60c9969b3e34b1a7c8f06e358241399b5f47bfb1"
-          }
+            "BuildData": "0ea6fcc9bc8ad9e7c729f5031123bcc69ce2b033",
+            "Bukkit": "205360171ca27ce7e5cf0d4cded89d26d404194b",
+            "CraftBukkit": "4ee88e81e40e597b006efd369777888d66ccc015",
+            "Spigot": "a084d85da8604d468f81091f56dc81166d912931"
+          },
+          "actual_minecraft": "1.21.2",
+          "sdk_revision": "4346",
+          "upstream_metadata": "https://hub.spigotmc.org/versions/4346.json"
         },
         "fabric": {
           "available": true,
@@ -1164,11 +1179,14 @@
           "available": true,
           "state": "planned",
           "refs": {
-            "BuildData": "851ec26f86db9951c78dd8868e0b474c2290ecd2",
-            "Bukkit": "9ef6c8db34776b9d661a91e2d44c0a2d4e43e6cb",
-            "CraftBukkit": "65f1f1130a7052e7c8018e3bd579470edf206833",
-            "Spigot": "7c52c662ccee93e52a21c54a1b8f93721e4ec773"
-          }
+            "BuildData": "436eac9815c211be1a2a6ca0702615f995e81c44",
+            "Bukkit": "fc3da16b94dd5041c79b22a5904bcda112086404",
+            "CraftBukkit": "2ed8fab2ee65d090778f08df7f0015f5b3298645",
+            "Spigot": "c8edd95326f2cbae23bb228043ccc2323356e439"
+          },
+          "actual_minecraft": "1.21.7",
+          "sdk_revision": "4522",
+          "upstream_metadata": "https://hub.spigotmc.org/versions/4522.json"
         },
         "fabric": {
           "available": true,
@@ -1250,11 +1268,14 @@
           "available": true,
           "state": "planned",
           "refs": {
-            "BuildData": "6cf716da198f9d94f9c36e36d9be6417c5c24824",
-            "Bukkit": "54dd32b56af7278dc8128a0b2fb54f91dca6b433",
-            "CraftBukkit": "5c73aaf1ef20a463bc6b0079bcb585b14e1968b5",
-            "Spigot": "6e369ba56125a52a628785448c15afa062a76932"
-          }
+            "BuildData": "42d18d4c4653ffc549778dbe223f6994a031d69e",
+            "Bukkit": "b6d15d8f8b03e16ffac4cc0b263f5735504b6766",
+            "CraftBukkit": "cfcd61a20c2cac536fecf608832f602a0c7cea5b",
+            "Spigot": "688b11a232392c6c672bf18fdee6f7e966c12ee4"
+          },
+          "actual_minecraft": "1.21.9",
+          "sdk_revision": "4538",
+          "upstream_metadata": "https://hub.spigotmc.org/versions/4538.json"
         },
         "fabric": {
           "available": true,
@@ -1279,11 +1300,11 @@
       "platforms": {
         "paper": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified"
         },
         "purpur": {
           "available": true,
-          "state": "planned"
+          "state": "building"
         },
         "folia": {
           "available": false,
@@ -1291,7 +1312,7 @@
         },
         "spigot": {
           "available": true,
-          "state": "planned",
+          "state": "building",
           "refs": {
             "BuildData": "6cf716da198f9d94f9c36e36d9be6417c5c24824",
             "Bukkit": "54dd32b56af7278dc8128a0b2fb54f91dca6b433",
@@ -1301,18 +1322,18 @@
         },
         "fabric": {
           "available": true,
-          "state": "planned"
+          "state": "building"
         },
         "forge": {
           "available": true,
           "sdk": "1.21.10-60.1.18",
-          "state": "planned"
+          "state": "building"
         },
         "neoforge": {
           "available": true,
           "sdk": "21.10.64",
           "artifact": "net.neoforged:neoforge",
-          "state": "planned"
+          "state": "building"
         }
       }
     },
@@ -1322,7 +1343,7 @@
       "platforms": {
         "paper": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "purpur": {
           "available": true,
@@ -1344,7 +1365,7 @@
         },
         "fabric": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "forge": {
           "available": true,
@@ -1379,15 +1400,18 @@
           "available": true,
           "state": "building",
           "refs": {
-            "BuildData": "1766f29a5430bb246f77e2fe24debb93a26a587d",
-            "Bukkit": "b5342f1ad2869a496f29d1d320744c00b161a162",
-            "CraftBukkit": "690a40233e2e171d94e2b99577b2b55b10d76d81",
-            "Spigot": "566f9723ddc5625b20aaa5f7acee9e8328ba5399"
-          }
+            "BuildData": "5bf19beb9fa500f822c35eb5634fcefe27f60bec",
+            "Bukkit": "8cc8b51d9e6d522b73c380441be0a5c0e88c153a",
+            "CraftBukkit": "f8e80b07dbf15b00d1fa5e9cda76160d1181705e",
+            "Spigot": "cc5228d82b825a0288dd89cce14f9f49c1d07e1b"
+          },
+          "actual_minecraft": "26.1",
+          "sdk_revision": "4604",
+          "upstream_metadata": "https://hub.spigotmc.org/versions/4604.json"
         },
         "fabric": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "forge": {
           "available": true,
@@ -1398,7 +1422,7 @@
           "available": true,
           "sdk": "26.1.0.19-beta",
           "artifact": "net.neoforged:neoforge",
-          "state": "building"
+          "state": "native-verified"
         }
       }
     },
@@ -1408,7 +1432,7 @@
       "platforms": {
         "paper": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "purpur": {
           "available": false,
@@ -1422,26 +1446,29 @@
           "available": true,
           "state": "building",
           "refs": {
-            "BuildData": "1766f29a5430bb246f77e2fe24debb93a26a587d",
-            "Bukkit": "b5342f1ad2869a496f29d1d320744c00b161a162",
-            "CraftBukkit": "690a40233e2e171d94e2b99577b2b55b10d76d81",
-            "Spigot": "566f9723ddc5625b20aaa5f7acee9e8328ba5399"
-          }
+            "BuildData": "71cd3e74d4a679366ccd4b6fff5e5595362832e3",
+            "Bukkit": "e2e27ca3506e4802c4d123239f57c2d9692072c6",
+            "CraftBukkit": "48244d7808b682af8fdc2d4070810540928fd459",
+            "Spigot": "4a90bec56da29bd9da0f2a7f15f3ba966a38caae"
+          },
+          "actual_minecraft": "26.1.1",
+          "sdk_revision": "4616",
+          "upstream_metadata": "https://hub.spigotmc.org/versions/4616.json"
         },
         "fabric": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "forge": {
           "available": true,
           "sdk": "26.1.1-63.0.2",
-          "state": "building"
+          "state": "native-verified"
         },
         "neoforge": {
           "available": true,
           "sdk": "26.1.1.15-beta",
           "artifact": "net.neoforged:neoforge",
-          "state": "building"
+          "state": "native-verified"
         }
       }
     },
@@ -1451,15 +1478,15 @@
       "platforms": {
         "paper": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "purpur": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "folia": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "spigot": {
           "available": true,
@@ -1473,18 +1500,18 @@
         },
         "fabric": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "forge": {
           "available": true,
           "sdk": "26.1.2-64.1.6",
-          "state": "building"
+          "state": "native-verified"
         },
         "neoforge": {
           "available": true,
           "sdk": "26.1.2.126",
           "artifact": "net.neoforged:neoforge",
-          "state": "building"
+          "state": "native-verified"
         }
       }
     },
@@ -1502,11 +1529,11 @@
         },
         "folia": {
           "available": true,
-          "state": "building"
+          "state": "native-verified"
         },
         "spigot": {
           "available": true,
-          "state": "building",
+          "state": "native-verified",
           "refs": {
             "BuildData": "41bd187bd86ec1444d2dc9e0188e53559cf870b3",
             "Bukkit": "a176036de14dbd873fcfed8f3111723cdb34e12c",

@@ -66,13 +66,12 @@ def prepare_engine(java, engine, cache):
         reusable = launcher.exists() and verified and verified["refs"] == definition["refs"] \
             and verified["sha256"] == hashlib.sha256(launcher.read_bytes()).hexdigest()
         if not reusable:
-            if not launcher.exists() or not all((builder / name / ".git").exists() for name in definition["refs"]):
-                builder.mkdir(exist_ok=True)
-                buildtools = cache / "BuildTools.jar"
-                download(definition["buildtools_url"], buildtools, definition["buildtools_sha256"])
-                run_logged([java, "-Xmx2G", "-jar", str(buildtools), "--rev", "1.21.11", "--compile", "SPIGOT",
-                            "--remapped", "--nogui", "--final-name", "spigot.jar", "--output-dir", str(cache)],
-                           builder, cache / "buildtools.log", timeout=900)
+            builder.mkdir(exist_ok=True)
+            buildtools = cache / "BuildTools.jar"
+            download(definition["buildtools_url"], buildtools, definition["buildtools_sha256"])
+            run_logged([java, "-Xmx2G", "-jar", str(buildtools), "--rev", definition.get("revision", definition["version"]), "--compile", "SPIGOT",
+                        "--remapped", "--nogui", "--final-name", "spigot.jar", "--output-dir", str(cache)],
+                       builder, cache / "buildtools.log", timeout=900)
             for name, expected in definition["refs"].items():
                 actual = subprocess.check_output(["git", "-C", str(builder / name), "rev-parse", "HEAD"], text=True).strip()
                 if actual != expected:
@@ -92,13 +91,18 @@ def prepare_engine(java, engine, cache):
     native = list((cache / "versions").rglob("*.jar"))
     if len(native) != 1:
         raise RuntimeError(f"Expected one native server in {cache / 'versions'}, got {len(native)}")
-    return launcher, native[0]
+    with zipfile.ZipFile(native[0]) as archive:
+        actual = json.loads(archive.read("version.json"))
+    expected = MODULE.name
+    if actual["name"] != expected:
+        raise RuntimeError(f"SDK targets Minecraft {actual['name']}; expected exact {expected}")
+    return launcher, native[0], actual["name"]
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", choices=SERVERS, default="paper")
-    parser.add_argument("--scenario", choices=["pending-contact", "blocked-return", "teleport-lock", "source-exit", "departure-contact", "swept-contact"])
+    parser.add_argument("--scenario", choices=["native-policy", "pending-contact", "blocked-return", "teleport-lock", "source-exit", "departure-contact", "swept-contact"])
     parser.add_argument("--accept-eula", action="store_true",
                         help="accept https://www.minecraft.net/eula for disposable test servers")
     parser.add_argument("--cache", type=Path, default=MODULE / "build/integration-cache")
@@ -106,7 +110,7 @@ def main():
     parser.add_argument("--java", default=str(Path(os.environ["JAVA_HOME"]) / "bin/java")
                         if "JAVA_HOME" in os.environ else "java")
     args = parser.parse_args()
-    if args.scenario in {"pending-contact", "teleport-lock", "source-exit"} and args.engine != "folia":
+    if args.scenario in {"native-policy", "pending-contact", "teleport-lock", "source-exit"} and args.engine != "folia":
         parser.error("This scenario requires --engine folia")
     if not args.accept_eula:
         parser.error("Read the Minecraft EULA, then pass --accept-eula to run test servers")
@@ -116,7 +120,7 @@ def main():
     javac = Path(java).resolve().with_name("javac")
     cache = args.cache.resolve() / args.engine
     cache.mkdir(parents=True, exist_ok=True)
-    launcher, server = prepare_engine(java, args.engine, cache)
+    launcher, server, minecraft = prepare_engine(java, args.engine, cache)
     classpath = [server, *sorted((cache / "libraries").rglob("*.jar"))]
     work = MODULE / ("build/integration-" + args.engine)
     classes = work / "fixture-classes"
@@ -186,7 +190,7 @@ def main():
         print(f"Phase {phase}: {len(outcome['checks'])} checks passed", flush=True)
     if any(hashlib.sha256(path.read_bytes()).hexdigest() != digest for path in [jar, copied]):
         raise RuntimeError("Release artifact changed during integration")
-    report = {"jar_sha256": digest, "engine": args.engine, "sync_chunk_writes": args.sync_chunk_writes == "true", "scenario": args.scenario, "server": SERVERS[args.engine], "phases": phases,
+    report = {"minecraft": minecraft, "jar_sha256": digest, "engine": args.engine, "sync_chunk_writes": args.sync_chunk_writes == "true", "scenario": args.scenario, "server": SERVERS[args.engine], "phases": phases,
               "passed": sum(len(phase["checks"]) for phase in phases), "stage": str(stage)}
     (work / "result.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({"passed": report["passed"], "jar_sha256": digest}), flush=True)

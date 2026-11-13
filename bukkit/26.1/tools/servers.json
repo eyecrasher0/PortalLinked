@@ -5,10 +5,11 @@
     "buildtools_url": "https://hub.spigotmc.org/jenkins/job/BuildTools/201/artifact/target/BuildTools.jar",
     "buildtools_sha256": "81ed06f5ce5fb705b558bf9b3cc2c5c53cdd9742406c5338c452faa13a1e1c24",
     "refs": {
-      "BuildData": "1766f29a5430bb246f77e2fe24debb93a26a587d",
-      "Bukkit": "b5342f1ad2869a496f29d1d320744c00b161a162",
-      "CraftBukkit": "690a40233e2e171d94e2b99577b2b55b10d76d81",
-      "Spigot": "566f9723ddc5625b20aaa5f7acee9e8328ba5399"
-    }
+      "BuildData": "5bf19beb9fa500f822c35eb5634fcefe27f60bec",
+      "Bukkit": "8cc8b51d9e6d522b73c380441be0a5c0e88c153a",
+      "CraftBukkit": "f8e80b07dbf15b00d1fa5e9cda76160d1181705e",
+      "Spigot": "cc5228d82b825a0288dd89cce14f9f49c1d07e1b"
+    },
+    "revision": "4604"
   }
 }

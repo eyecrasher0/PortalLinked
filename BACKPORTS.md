@@ -9,9 +9,10 @@ The complete queue and upstream platform availability are recorded in
 [`tools/backport-targets.json`](tools/backport-targets.json). Availability means
 an official SDK or server exists; `planned` entries are not supported builds of
 PortalLinked. Only **26.3 / PortalLinked 1.1.0** is released at present.
-Work on **26.2 / PortalLinked 1.2.0** is in progress.
+Work on **PortalLinked 1.2.0** backports is in progress. The queue records
+builds that have completed native verification separately from released builds.
 
-Folia 26.2 build7 has an upstream limitation: its native asynchronous Nether
+Folia 26.2 build7 and 26.1.2 build8 have an upstream limitation: its native asynchronous Nether
 travel path does not enforce `allowEnteringNetherUsingPortals`. PortalLinked
 declines personal routing and link updates when that native predicate denies
 entry, while the server's own route retains its existing behavior. The test
@@ -22,7 +23,9 @@ For example, Forge publishes 1.8.9, but the official Paper and Spigot historical
 servers use 1.8.8. The queue does not label a 1.8.8 server as a 1.8.9 server.
 Folia and NeoForge are included only where those projects publish a build for
 the requested release. No snapshot or neighbouring Minecraft version substitutes
-for an exact target.
+for an exact target. Spigot version aliases sometimes select a newer patch;
+the queue pins historical numeric revisions in those cases. The native runner
+checks the server JAR’s embedded Minecraft version before starting it.
 
 Inspect the queue:
 
@@ -54,3 +57,10 @@ The backport launcher sets `sync-chunk-writes=false` only on its disposable test
 servers to avoid host filesystem contention. Player saves, actual process exit,
 relaunch and restored-data assertions remain mandatory. Direct native runners
 also accept `--sync-chunk-writes true` for the server's normal write setting.
+
+Some older Forge installers produce different archive checksums with newer JDKs.
+The pinned Forge 26.1 and 1.21.11 installers validate successfully using JDK17.
+Pass `--installer-java /path/to/jdk-17/bin/java` to the backport native command;
+the server still uses the target Minecraft JDK. Installer checksum checks remain
+enabled. ForgeGradle7 build tools need JDK25 even for a Java21 Minecraft target;
+provide both toolchains to Gradle when building those adapters.

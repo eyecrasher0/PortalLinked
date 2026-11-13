@@ -1,4 +1,4 @@
-// SPDX-License-ResourceLocation: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 EyeCrasher
 package dev.eyecrasher.fixture;
 
@@ -7,6 +7,8 @@ import com.mojang.authlib.GameProfile;
 import dev.eyecrasher.portallinked.NativePortal;
 import dev.eyecrasher.portallinked.PlayerLinkData;
 import dev.eyecrasher.portallinked.PortalPair;
+import dev.eyecrasher.fixture.mixin.ConnectionAccess;
+import dev.eyecrasher.fixture.mixin.PlayerListAccess;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
@@ -70,9 +72,9 @@ public final class NativeIntegration {
         String failure = null;
         try {
             if (System.getProperty("portallinked.scenario", "").equals("blocked-return")) test.blockedReturns();
-            else if (System.getProperty("portallinked.scenario", "").equals("dimension-identifiers")) test.dimensionResourceLocations();
+            else if (System.getProperty("portallinked.scenario", "").equals("dimension-identifiers")) test.dimensionIdentifiers();
             else if (System.getProperty("portallinked.phase", "1").equals("2")) test.restart();
-            else { test.dimensionResourceLocations(); test.mechanics(); test.administration(); test.persistence(); }
+            else { test.dimensionIdentifiers(); test.mechanics(); test.administration(); test.persistence(); }
             server.saveEverything(true, true, true);
         } catch (Throwable ex) { ex.printStackTrace(); failure = ex.toString(); }
         try {
@@ -256,7 +258,7 @@ public final class NativeIntegration {
         check(pair(user) == null, "self forget clears saved pair");
     }
 
-    private void dimensionResourceLocations() throws Exception {
+    private void dimensionIdentifiers() throws Exception {
         frame(overworld, 176032, 64, 0, Direction.Axis.X, 4, 5);
         frame(overworld, 176000, 64, 0, Direction.Axis.X, 2, 3);
         frame(nether, 22000, 64, 0, Direction.Axis.Z, 5, 6);
@@ -381,8 +383,8 @@ public final class NativeIntegration {
         GameProfile profile = new GameProfile(id, name);
         ServerPlayer player = new ServerPlayer(server, level, profile, ClientInformation.createDefault());
         Connection connection = new Connection(PacketFlow.SERVERBOUND);
-        field(Connection.class, connection, "channel", new EmbeddedChannel());
-        field(Connection.class, connection, "address", new InetSocketAddress("127.0.0.1", 54321));
+        ((ConnectionAccess) connection).portallinked$channel(new EmbeddedChannel());
+        ((ConnectionAccess) connection).portallinked$address(new InetSocketAddress("127.0.0.1", 54321));
         player.connection = new ServerGamePacketListenerImpl(server, connection, player, CommonListenerCookie.createInitial(profile, false)) {
             @Override public void send(Packet<?> packet) {}
         };
@@ -391,16 +393,10 @@ public final class NativeIntegration {
     }
     private ServerPlayer bot(String name, UUID id, ServerLevel level, double x, double y, double z) throws Exception {
         ServerPlayer player = make(name, id, level, x, y, z);
-        var players = net.minecraft.server.players.PlayerList.class.getDeclaredField("players"); players.setAccessible(true);
-        @SuppressWarnings("unchecked") List<ServerPlayer> registered = (List<ServerPlayer>) players.get(server.getPlayerList());
-        registered.add(player);
-        var ids = net.minecraft.server.players.PlayerList.class.getDeclaredField("playersByUUID"); ids.setAccessible(true);
-        @SuppressWarnings("unchecked") Map<UUID, ServerPlayer> byId = (Map<UUID, ServerPlayer>) ids.get(server.getPlayerList());
-        byId.put(id, player); level.addNewPlayer(player);
+        PlayerListAccess players = (PlayerListAccess) server.getPlayerList();
+        players.portallinked$players().add(player);
+        players.portallinked$playersByUUID().put(id, player); level.addNewPlayer(player);
         return player;
-    }
-    private void field(Class<?> owner, Object object, String name, Object value) throws Exception {
-        var field = owner.getDeclaredField(name); field.setAccessible(true); field.set(object, value);
     }
     private int command(String text, ServerPlayer player, boolean admin) throws Exception {
         CommandSource capture = new CommandSource() {

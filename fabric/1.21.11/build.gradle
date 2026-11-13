@@ -29,10 +29,12 @@ processResources {
     filesMatching('fabric.mod.json') { expand version: project.version }
     from('../../branding/icon.png')
 }
-tasks.withType(AbstractArchiveTask).configureEach {
+tasks.withType(AbstractArchiveTask).configureEach { task ->
     preserveFileTimestamps = false
     reproducibleFileOrder = true
-    from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+    if (task.name in ['jar', 'sourcesJar', 'integrationFixture']) {
+        from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+    }
 }
 
 apply from: '../../gradle/mod-integration.gradle'
