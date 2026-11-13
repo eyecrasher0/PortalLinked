@@ -102,7 +102,7 @@ def prepare_engine(java, engine, cache):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", choices=SERVERS, default="paper")
-    parser.add_argument("--scenario", choices=["pending-contact", "blocked-return", "teleport-lock", "source-exit", "departure-contact", "swept-contact"])
+    parser.add_argument("--scenario", choices=["native-policy", "pending-contact", "blocked-return", "teleport-lock", "source-exit", "departure-contact", "swept-contact"])
     parser.add_argument("--accept-eula", action="store_true",
                         help="accept https://www.minecraft.net/eula for disposable test servers")
     parser.add_argument("--cache", type=Path, default=MODULE / "build/integration-cache")
@@ -110,7 +110,7 @@ def main():
     parser.add_argument("--java", default=str(Path(os.environ["JAVA_HOME"]) / "bin/java")
                         if "JAVA_HOME" in os.environ else "java")
     args = parser.parse_args()
-    if args.scenario in {"pending-contact", "teleport-lock", "source-exit"} and args.engine != "folia":
+    if args.scenario in {"native-policy", "pending-contact", "teleport-lock", "source-exit"} and args.engine != "folia":
         parser.error("This scenario requires --engine folia")
     if not args.accept_eula:
         parser.error("Read the Minecraft EULA, then pass --accept-eula to run test servers")
@@ -121,7 +121,16 @@ def main():
     cache = args.cache.resolve() / args.engine
     cache.mkdir(parents=True, exist_ok=True)
     launcher, server, minecraft = prepare_engine(java, args.engine, cache)
-    classpath = [server, *sorted((cache / "libraries").rglob("*.jar"))]
+    jar = MODULE / "build/libs/portallinked-bukkit-1.2.0+1.21.10.jar"
+    if not jar.is_file():
+        raise RuntimeError("Build first: ./gradlew build")
+    development = server
+    if args.engine == "spigot":
+        sdk = list((cache / "builder/Spigot/Spigot-Server/target").glob("*-remapped-mojang.jar"))
+        if len(sdk) != 1:
+            raise RuntimeError("Expected one exact Spigot development SDK")
+        development = sdk[0]
+    classpath = [development, jar, *sorted((cache / "libraries").rglob("*.jar"))]
     work = MODULE / ("build/integration-" + args.engine)
     classes = work / "fixture-classes"
     classes.mkdir(parents=True, exist_ok=True)
@@ -142,6 +151,13 @@ def main():
                      f"main: dev.eyecrasher.fixture.{fixture}\napi-version: '1.21.10'\ndepend: [PortalLinked]\nfolia-supported: true\n")
         for path in classes.rglob("*.class"):
             out.write(path, path.relative_to(classes))
+    if args.engine == "spigot":
+        original = stage / "fixture-mojang.jar"
+        (stage / "plugins/PortalIntegration.jar").rename(original)
+        run_logged([os.sys.executable, str(MODULE.parents[1] / "tools/spigot-fixture.py"),
+                    "--builder", str(cache / "builder"), "--minecraft", MODULE.name, "--java", java,
+                    "--input", str(original), "--output", str(stage / "plugins/PortalIntegration.jar")],
+                   MODULE, work / "fixture-remap.log", timeout=120)
     shutil.copy2(launcher, stage / "server.jar")
     if SERVERS[args.engine]["kind"] == "paperclip":
         for name in ["libraries", "versions", "cache"]:

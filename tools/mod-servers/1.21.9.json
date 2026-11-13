@@ -23,6 +23,7 @@
     "url": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.21.9-59.0.5/forge-1.21.9-59.0.5-installer.jar",
     "sha256": "ba5d667c645d6de1f6b53a6d9cc9d2c07de6a84e2bc25110828fe50440cd2899",
     "mod_version": "1.2.0",
-    "args": "libraries/net/minecraftforge/forge/1.21.9-59.0.5/unix_args.txt"
+    "args": "libraries/net/minecraftforge/forge/1.21.9-59.0.5/unix_args.txt",
+    "fixture_post_stop_cleanup": "ConfigTracker.forceUnload after ServerStoppedEvent"
   }
 }

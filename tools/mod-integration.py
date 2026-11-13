@@ -51,7 +51,7 @@ def main():
         parser.error('Read https://www.minecraft.net/eula and pass --accept-eula for disposable test servers')
     java = shutil.which(args.java)
     if java is None:
-        raise RuntimeError('Java 25 is required')
+        raise RuntimeError('Java executable was not found')
     installer_java = shutil.which(args.installer_java) if args.installer_java else java
     if installer_java is None:
         parser.error('Installer Java executable was not found')
@@ -135,6 +135,11 @@ def main():
             raise RuntimeError(f'{outcome["failure"]}; inspect {log}')
         if not outcome['checks']:
             raise RuntimeError('No checks executed')
+        if definition.get('fixture_post_stop_cleanup'):
+            marker = stage / 'fixture-post-stop.txt'
+            if not marker.is_file() or marker.read_text().strip() != str(phase):
+                raise RuntimeError('Native post-stop cleanup did not complete for this server phase')
+            outcome['post_stop_cleanup'] = definition['fixture_post_stop_cleanup']
         phases.append(outcome)
         print(f'Phase {phase}: {len(outcome["checks"])} checks passed', flush=True)
     if any(hashlib.sha256(path.read_bytes()).hexdigest() != digest for path in [jar, stage / 'mods' / jar.name]):

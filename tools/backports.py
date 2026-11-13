@@ -15,7 +15,7 @@ PLATFORMS = ['paper', 'spigot', 'purpur', 'folia', 'fabric', 'neoforge', 'forge'
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['list', 'build', 'native'])
+    parser.add_argument('command', choices=['list', 'build', 'native', 'ci-matrix'])
     parser.add_argument('--minecraft')
     parser.add_argument('--platform', choices=PLATFORMS)
     parser.add_argument('--json', action='store_true')
@@ -32,6 +32,31 @@ def main():
     if args.minecraft and not any(row['minecraft'] == args.minecraft for row in rows):
         parser.error('Minecraft version is not a resolved target; see unresolved_requests in the manifest')
     selected = [row for row in rows if not args.minecraft or row['minecraft'] == args.minecraft]
+    if args.command == 'ci-matrix':
+        entries = []
+        for row in selected:
+            if row['minecraft'] == '26.3':
+                continue  # The released target retains its existing workflow.
+            for platform in PLATFORMS:
+                target = row['platforms'][platform]
+                if not target['available'] or target['state'] == 'planned':
+                    continue
+                if args.platform and platform != args.platform:
+                    continue
+                loader = 'bukkit' if platform in PLATFORMS[:4] else platform
+                module = Path(loader) / row['minecraft']
+                if not (ROOT / module / 'build.gradle').is_file():
+                    parser.error(f'Implemented target is missing its build project: {module}')
+                legacy = loader == 'forge' and row['java'] == 8
+                entries.append({
+                    'minecraft': row['minecraft'], 'platform': platform, 'module': str(module),
+                    'java': row['java'], 'build_java': target.get('build_java',
+                        25 if loader == 'forge' and not legacy else row['java']),
+                    'legacy_forge': legacy,
+                    'setup_decomp': loader == 'forge' and row['minecraft'] in ['1.7.10', '1.8.9'],
+                })
+        print(json.dumps({'include': entries}, separators=(',', ':')))
+        return
     if args.command == 'list':
         if args.json:
             print(json.dumps(selected, indent=2))

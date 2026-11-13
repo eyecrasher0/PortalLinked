@@ -2,6 +2,8 @@
 // Copyright (C) 2026 EyeCrasher
 package dev.eyecrasher.fixture;
 
+import dev.eyecrasher.portallinked.Nms;
+
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -513,14 +515,14 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
         player.getBukkitEntity().setInvulnerable(true);
         server.getPlayerList().getPlayers().add(player);
         try {
-            var field = net.minecraft.server.players.PlayerList.class.getDeclaredField("playersByUUID");
+            var field = Nms.declaredField(net.minecraft.server.players.PlayerList.class, "playersByUUID");
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
             Map<UUID, ServerPlayer> byId = (Map<UUID, ServerPlayer>) field.get(server.getPlayerList());
             byId.put(id, player);
         } catch (ReflectiveOperationException ex) { throw new AssertionError("Cannot register fixture UUID", ex); }
         try {
-            var field = net.minecraft.server.players.PlayerList.class.getDeclaredField("playersByName");
+            var field = Nms.declaredField(net.minecraft.server.players.PlayerList.class, "playersByName");
             field.setAccessible(true);
             @SuppressWarnings("unchecked")
             Map<String, ServerPlayer> byName = (Map<String, ServerPlayer>) field.get(server.getPlayerList());
@@ -580,7 +582,7 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
             probe.getBukkitEntity().setPortalCooldown(0);
             inside(probe, first); inside(probe, second);
             check(process.getEntryPosition().equals(first), "native processor retains first accepted departure: " + label);
-            var handle = Entity.class.getDeclaredMethod("handlePortal"); handle.setAccessible(true); handle.invoke(probe);
+            var handle = Nms.declaredMethod(Entity.class, "handlePortal"); handle.setAccessible(true); handle.invoke(probe);
             check(probe.level().getWorld().equals(shared) && data(probe) != null,
                     "native overlapping departure completes and saves: " + label);
             check(java.nio.ByteBuffer.wrap(data(probe)).getInt(x ? 25 : 17) == 0,
@@ -621,10 +623,10 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
                         "swept player ends outside the contacted frame: " + label);
                 probe.applyEffectsFromBlocks(from, to);
                 try {
-                    var field = Entity.class.getDeclaredField("portalProcess"); field.setAccessible(true);
+                    var field = Nms.declaredField(Entity.class, "portalProcess"); field.setAccessible(true);
                     PortalProcessor process = (PortalProcessor) field.get(probe);
                     check(process != null && process.isInsidePortalThisTick(), "native swept movement accepts the portal: " + label);
-                    var handle = Entity.class.getDeclaredMethod("handlePortal"); handle.setAccessible(true); handle.invoke(probe);
+                    var handle = Nms.declaredMethod(Entity.class, "handlePortal"); handle.setAccessible(true); handle.invoke(probe);
                 } catch (ReflectiveOperationException ex) { throw new AssertionError(ex); }
                 check(probe.level().getWorld().equals(target) && data(probe) != null,
                         "swept crossing completes and records its pair: " + label);
@@ -643,7 +645,7 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
 
     private void inside(ServerPlayer player, BlockPos contact) {
         try {
-            var inside = NetherPortalBlock.class.getDeclaredMethod("entityInside", BlockState.class, net.minecraft.world.level.Level.class,
+            var inside = Nms.declaredMethod(NetherPortalBlock.class, "entityInside", BlockState.class, net.minecraft.world.level.Level.class,
                     BlockPos.class, Entity.class, InsideBlockEffectApplier.class, boolean.class);
             inside.setAccessible(true);
             inside.invoke(Blocks.NETHER_PORTAL, player.level().getBlockState(contact), player.level(), contact,
@@ -725,7 +727,7 @@ public final class PortalIntegration extends JavaPlugin implements Listener {
 
     private void nativeField(Class<?> type, Object target, String name, Object value) {
         try {
-            var field = type.getDeclaredField(name);
+            var field = Nms.declaredField(type, name);
             field.setAccessible(true);
             field.set(target, value);
         } catch (ReflectiveOperationException ex) { throw new AssertionError("Cannot initialize test connection", ex); }

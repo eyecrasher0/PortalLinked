@@ -18,6 +18,12 @@ declines personal routing and link updates when that native predicate denies
 entry, while the server's own route retains its existing behavior. The test
 suite compares a direct native control with the plugin-enabled journey.
 
+Folia 1.21.8 predates that game rule and uses the server's `allow-nether`
+startup setting. PortalLinked honours it for personal routing and link updates.
+The native suite also compares behavior after a live setting change while the
+Nether world is already loaded, without treating that as a supported server
+configuration reload.
+
 Some releases have no corresponding build of a particular server or loader.
 For example, Forge publishes 1.8.9, but the official Paper and Spigot historical
 servers use 1.8.8. The queue does not label a 1.8.8 server as a 1.8.9 server.
@@ -27,11 +33,15 @@ for an exact target. Spigot version aliases sometimes select a newer patch;
 the queue pins historical numeric revisions in those cases. The native runner
 checks the server JAR’s embedded Minecraft version before starting it.
 
+The Spigot 26.1 adapter compiles against Paper's 26.1.1 API and is tested on
+the exact Spigot 26.1 server.
+
 Inspect the queue:
 
 ```sh
 python3 tools/backports.py list
 python3 tools/backports.py list --minecraft 26.2 --json
+python3 tools/backports.py ci-matrix
 ```
 
 Use the appropriate JDK for a target, then build an implemented adapter and run
@@ -69,9 +79,23 @@ Spigot 1.21.11 uses Mojang’s official `1.21.11_unobfuscated` variant. Its SDK
 definition pins that variant explicitly; other Minecraft patch releases remain
 separate targets.
 
-Legacy Forge 1.8.9 and 1.12.2 builds use Java8. They store the structured
+Legacy Forge 1.7.10, 1.8.9 and 1.12.2 builds use Java8. They store the structured
 portal pair in Forge’s native `PlayerPersisted` player NBT, which survives death
 and respawn; modern loader builds use their native player-save hook. No external
 database is required. Changing between these legacy and modern save layouts does
 not automatically migrate remembered pairs; an ordinary successful crossing
 establishes a fresh pair.
+
+Forge 1.21.9 / 59.0.5 leaves a NightConfig3.7.4 watcher thread alive after
+shutdown, including on a server with no mods. The disposable Forge fixture
+unloads the loader configuration context through `ConfigTracker.forceUnload()`
+after `ServerStoppedEvent`, then records completion for that phase. Portal
+checks, native player saves and a real process restart still run in full. This
+cleanup is confined to the fixture and recorded in its SDK definition; the
+PortalLinked runtime does not change the loader's shutdown behavior.
+
+The Backport verification workflow builds every implemented target in the queue
+and runs its native restart checks with the matching Minecraft Java runtime.
+Planned adapters are omitted until their projects exist. Its artifacts retain
+the built JARs, test reports and native server logs. The released 26.3 target
+continues to use the separate Platform verification workflow.

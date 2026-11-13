@@ -1,0 +1,11 @@
+{
+  "forge": {
+    "minecraft": "1.7.10",
+    "version": "1.7.10-10.13.4.1614-1.7.10",
+    "kind": "legacy-forge",
+    "url": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.7.10-10.13.4.1614-1.7.10/forge-1.7.10-10.13.4.1614-1.7.10-installer.jar",
+    "sha256": "a5d60757d8b305939233a942d5097fa78816d116ef9082c03066fe669e010c7f",
+    "server_jar": "forge-1.7.10-10.13.4.1614-1.7.10-universal.jar",
+    "mod_version": "1.2.0"
+  }
+}
