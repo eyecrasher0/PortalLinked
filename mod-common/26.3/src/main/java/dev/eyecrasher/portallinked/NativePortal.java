@@ -19,7 +19,7 @@ import net.minecraft.world.phys.AABB;
 /** Identity of a complete portal interior, independent of the touched block. */
 public record NativePortal(String world, int x, int y, int z, Direction.Axis axis, int width, int height) {
     public NativePortal {
-        if (world == null || Identifier.tryParse(world) == null || !world.contains(":"))
+        if (world == null || world.indexOf(':') <= 0 || Identifier.tryParse(world) == null)
             throw new IllegalArgumentException("Portal dimension");
         if ((axis != Direction.Axis.X && axis != Direction.Axis.Z) || width < 2 || width > 21
                 || height < 3 || height > 21 || Math.abs((long) x) > 29_999_984

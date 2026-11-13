@@ -21,6 +21,7 @@
 - Checks current player collision bounds before forcing a remembered return and
   runs native teleport callbacks outside the shared settings lock.
 - Shares mod player-save data and JSON configuration across the three loaders.
+- Rejects incomplete dimension identifiers in mod settings and saved portal pairs.
 - Adds native server/restart verification for every supported platform.
 - Documents admin settings, installation choices and source/build requirements.
 

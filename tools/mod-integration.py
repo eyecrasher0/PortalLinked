@@ -38,7 +38,7 @@ def run_logged(command, cwd, log, timeout=360):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--loader', choices=SERVERS, required=True)
-    parser.add_argument('--scenario', choices=['blocked-return'])
+    parser.add_argument('--scenario', choices=['blocked-return', 'dimension-identifiers'])
     parser.add_argument('--accept-eula', action='store_true')
     parser.add_argument('--cache', type=Path, default=ROOT / 'build/mod-integration-cache')
     parser.add_argument('--java', default=str(Path(os.environ['JAVA_HOME']) / 'bin/java') if 'JAVA_HOME' in os.environ else 'java')

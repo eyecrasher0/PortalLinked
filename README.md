@@ -94,7 +94,8 @@ The Fabric, NeoForge and Forge mods create `config/portallinked.json`:
 
 For mods, exclusions use complete, case-sensitive dimension identifiers, such as
 `["minecraft:the_nether"]`. The settings have the same effect as the plugin
-settings. Keep all three fields present with the types shown above.
+settings. Both the namespace and path must be present; `the_nether` and
+`:the_nether` are invalid. Keep all three fields present with the types shown above.
 
 Apply configuration changes with `/portallinked reload`. The optional admin
 commands require `portallinked.admin` on Bukkit servers, granted to operators by

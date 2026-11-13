@@ -70,8 +70,9 @@ public final class NativeIntegration {
         String failure = null;
         try {
             if (System.getProperty("portallinked.scenario", "").equals("blocked-return")) test.blockedReturns();
+            else if (System.getProperty("portallinked.scenario", "").equals("dimension-identifiers")) test.dimensionIdentifiers();
             else if (System.getProperty("portallinked.phase", "1").equals("2")) test.restart();
-            else { test.mechanics(); test.administration(); test.persistence(); }
+            else { test.dimensionIdentifiers(); test.mechanics(); test.administration(); test.persistence(); }
             server.saveEverything(true, true, true);
         } catch (Throwable ex) { ex.printStackTrace(); failure = ex.toString(); }
         try {
@@ -231,8 +232,7 @@ public final class NativeIntegration {
         for (String excluded : List.of("", "minecraft:overworld", "minecraft:the_nether")) {
             writeConfig(false, excluded, false); command("portallinked reload", user, true);
             PortalPair before = pair(user);
-            travel(user); travel(user);
-            check(before.equals(pair(user)), "disabled mode preserves stored link with exclusions " + excluded);
+            unchangedCrossings(user, "disabled mode preserves stored link with exclusions " + excluded);
             for (String invalid : List.of("{", "{\"enabled\":null,\"excluded-worlds\":[],\"debug\":false}",
                     "{\"excluded-worlds\":[],\"debug\":false}", "{\"enabled\":true,\"excluded-worlds\":null,\"debug\":false}",
                     "{\"enabled\":true,\"excluded-worlds\":[],\"debug\":null}",
@@ -245,8 +245,7 @@ public final class NativeIntegration {
             }
             writeConfig(true, excluded, false); command("portallinked reload", user, true);
             if (!excluded.isEmpty()) {
-                travel(user); travel(user);
-                check(before.equals(pair(user)), "either excluded endpoint skips recording " + excluded);
+                unchangedCrossings(user, "either excluded endpoint skips recording " + excluded);
             }
         }
         writeConfig(true, "", false); command("portallinked reload", user, true);
@@ -255,6 +254,75 @@ public final class NativeIntegration {
         check(pair(neighbor) == null && own.equals(pair(user)), "forget changes only selected player");
         command("portallinked forget", user, true);
         check(pair(user) == null, "self forget clears saved pair");
+    }
+
+    private void dimensionIdentifiers() throws Exception {
+        frame(overworld, 176032, 64, 0, Direction.Axis.X, 4, 5);
+        frame(overworld, 176000, 64, 0, Direction.Axis.X, 2, 3);
+        frame(nether, 22000, 64, 0, Direction.Axis.Z, 5, 6);
+        ServerPlayer player = bot("DimensionIds", UUID.randomUUID(), overworld, 176032.5, 64, 0.5);
+        travel(player);
+        PlayerLinkData data = (PlayerLinkData) player;
+        for (String invalid : List.of(":the_nether", ":overworld", "the_nether", "overworld")) {
+            PortalPair before = pair(player);
+            TeleportTransition transition = destination(player);
+            var pending = data.portallinked$getPending();
+            check(pending != null && pending.transition() == transition, "native trip is pending before invalid dimension reload " + invalid);
+            command("portallinked status", player, true); String status = last();
+            writeConfig(true, invalid, true);
+            check(command("portallinked reload", player, true) == 0 && last().contains("Previous settings are unchanged"),
+                    "incomplete dimension reload is rejected " + invalid);
+            command("portallinked status", player, true);
+            check(last().equals(status) && before.equals(pair(player)) && data.portallinked$getPending() == pending,
+                    "invalid dimension reload preserves settings, pair and pending identity " + invalid);
+            check(player.teleport(transition) == player && NativePortal.touching(player).filter(before.departure()::equals).isPresent()
+                    && new PortalPair(before.arrival(), before.departure()).equals(pair(player))
+                    && data.portallinked$getPending() == null && data.portallinked$getActive() == null,
+                    "pending native crossing still routes and records after invalid dimension reload " + invalid);
+        }
+        writeConfig(true, "eyecrasher:custom/world", false);
+        check(command("portallinked reload", player, true) == 1, "fully qualified custom exclusion reload succeeds");
+        command("portallinked status", player, true);
+        check(last().equals("PortalLinked: enabled=true, excluded-worlds=[eyecrasher:custom/world], debug=false."),
+                "custom dimension exclusion keeps its exact identifier");
+        PortalPair before = pair(player);
+        travel(player);
+        check(new PortalPair(before.arrival(), before.departure()).equals(pair(player)), "custom exclusion leaves standard dimensions active");
+        for (String excluded : List.of("minecraft:overworld", "minecraft:the_nether")) {
+            writeConfig(true, excluded, false);
+            check(command("portallinked reload", player, true) == 1, "canonical exclusion reload succeeds " + excluded);
+            unchangedCrossings(player, "canonical exclusion preserves saved pair " + excluded);
+        }
+        writeConfig(false, "", false);
+        check(command("portallinked reload", player, true) == 1, "disabled configuration reload succeeds");
+        unchangedCrossings(player, "disabled configuration preserves saved pair");
+        writeConfig(true, "", false);
+        check(command("portallinked reload", player, true) == 1, "valid defaults reload succeeds after dimension checks");
+        TagValueOutput output = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, server.registryAccess());
+        player.saveWithoutId(output);
+        CompoundTag saved = output.buildResult();
+        ServerPlayer clone = make("DimensionIds", player.getUUID(), player.level(), player.getX(), player.getY(), player.getZ());
+        clone.load(TagValueInput.create(ProblemReporter.DISCARDING, server.registryAccess(), saved));
+        check(pair(player).equals(pair(clone)), "fully qualified endpoint worlds round-trip through native player load");
+        for (String endpoint : List.of("departure", "arrival"))
+            for (String invalid : List.of(":the_nether", ":overworld", "the_nether", "overworld", "")) {
+                clone.load(TagValueInput.create(ProblemReporter.DISCARDING, server.registryAccess(), saved));
+                CompoundTag corrupt = saved.copy();
+                corrupt.getCompound(PortalPair.KEY).orElseThrow().getCompound(endpoint).orElseThrow().putString("world", invalid);
+                clone.load(TagValueInput.create(ProblemReporter.DISCARDING, server.registryAccess(), corrupt));
+                check(pair(clone) == null, "incomplete persisted " + endpoint + " world is rejected " + invalid);
+            }
+        CompoundTag custom = saved.copy();
+        custom.getCompound(PortalPair.KEY).orElseThrow().getCompound("departure").orElseThrow().putString("world", "eyecrasher:home");
+        custom.getCompound(PortalPair.KEY).orElseThrow().getCompound("arrival").orElseThrow().putString("world", "other_namespace:portals/deep");
+        clone.load(TagValueInput.create(ProblemReporter.DISCARDING, server.registryAccess(), custom));
+        PortalPair customPair = pair(clone);
+        check(customPair != null && customPair.departure().world().equals("eyecrasher:home")
+                && customPair.arrival().world().equals("other_namespace:portals/deep"), "fully qualified custom endpoint worlds load unchanged");
+        TagValueOutput customOutput = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, server.registryAccess());
+        clone.saveWithoutId(customOutput);
+        clone.load(TagValueInput.create(ProblemReporter.DISCARDING, server.registryAccess(), customOutput.buildResult()));
+        check(customPair.equals(pair(clone)), "fully qualified custom pair survives native save and load");
     }
 
     private void persistence() throws Exception {
@@ -273,9 +341,7 @@ public final class NativeIntegration {
         check(JSON.toJson(pair(player)).equals(Files.readString(Path.of("expected-pair.json"))), "pair survives actual server shutdown and restart");
         command("portallinked status", player, true);
         check(last().equals("PortalLinked: enabled=false, excluded-worlds=[], debug=false."), "invalid startup keeps linking disabled");
-        PortalPair before = pair(player);
-        travel(player); travel(player);
-        check(before.equals(pair(player)), "invalid startup retains stored link");
+        unchangedCrossings(player, "invalid startup retains stored link");
         writeConfig(true, "", false); command("portallinked reload", player, true);
         travel(player);
         check(player.level() == overworld && player.getX() >= 832 && player.getX() < 837, "valid reload restores remembered return after restart");
@@ -288,6 +354,13 @@ public final class NativeIntegration {
     private void travel(ServerPlayer player) {
         TeleportTransition transition = destination(player);
         if (transition == null || player.teleport(transition) == null) throw new AssertionError("Native portal transition failed for " + player.getScoreboardName());
+    }
+    private void unchangedCrossings(ServerPlayer player, String message) {
+        PortalPair before = pair(player);
+        for (int crossing = 1; crossing <= 2; crossing++) {
+            travel(player);
+            check(before.equals(pair(player)), message + " after crossing " + crossing);
+        }
     }
     private void relocate(ServerPlayer player, ServerLevel level, double x, double y, double z) {
         if (player.teleport(new TeleportTransition(level, new Vec3(x, y, z), Vec3.ZERO, 0, 0, TeleportTransition.DO_NOTHING)) == null)
