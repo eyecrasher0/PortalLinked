@@ -1,0 +1,27 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="GPL-3.0-only"
+issueTrackerURL="https://github.com/eyecrasher0/PortalLinked/issues"
+
+[[mods]]
+modId="portallinked"
+version="${version}"
+displayName="PortalLinked"
+authors="EyeCrasher"
+logoFile="icon.png"
+description='''Personal Nether return routes while preserving normal portal travel.'''
+
+[[mixins]]
+config="portallinked.mixins.json"
+
+[[dependencies.portallinked]]
+modId="minecraft"
+type="required"
+versionRange="[26.3]"
+side="SERVER"
+
+[[dependencies.portallinked]]
+modId="neoforge"
+type="required"
+versionRange="[26.3.0.102,)"
+side="SERVER"

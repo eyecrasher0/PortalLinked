@@ -1,0 +1,53 @@
+import groovy.json.JsonOutput
+
+def loaderName = projectDir.parentFile.name
+def generatedMetadata = layout.buildDirectory.dir('generated/integration-metadata')
+
+sourceSets {
+    integration {
+        java.srcDirs '../../mod-common/26.3/src/integration/java', 'src/integration/java'
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+    }
+}
+
+tasks.register('integrationMetadata') {
+    outputs.dir generatedMetadata
+    doLast {
+        def output = generatedMetadata.get().asFile
+        output.mkdirs()
+        new File(output, 'portallinked.integration.mixins.json').text = JsonOutput.prettyPrint(JsonOutput.toJson([
+            required: true, minVersion: '0.8', package: 'dev.eyecrasher.fixture.mixin',
+            compatibilityLevel: 'JAVA_21', server: ['ServerTickFixtureMixin', 'CancelTeleportFixtureMixin'],
+            injectors: [defaultRequire: 1]
+        ]))
+        if (loaderName == 'fabric') {
+            new File(output, 'fabric.mod.json').text = JsonOutput.prettyPrint(JsonOutput.toJson([
+                schemaVersion: 1, id: 'portallinked_integration', version: '1', name: 'PortalLinked integration fixture',
+                environment: 'server', license: 'GPL-3.0-only', mixins: ['portallinked.integration.mixins.json'],
+                depends: [portallinked: '*', minecraft: '26.3', fabricloader: '>=0.20.1']
+            ]))
+        } else {
+            def target = new File(output, loaderName == 'forge' ? 'META-INF/mods.toml' : 'META-INF/neoforge.mods.toml')
+            target.parentFile.mkdirs()
+            target.text = '''modLoader="javafml"
+loaderVersion="[1,)"
+license="GPL-3.0-only"
+[[mods]]
+modId="portallinked_integration"
+version="1"
+displayName="PortalLinked integration fixture"
+description="Disposable test server fixture."
+'''
+            if (loaderName == 'neoforge') target << '\n[[mixins]]\nconfig="portallinked.integration.mixins.json"\n'
+        }
+    }
+}
+
+tasks.register('integrationFixture', Jar) {
+    dependsOn tasks.named('jar'), tasks.named('integrationClasses'), tasks.named('integrationMetadata')
+    archiveBaseName = 'portallinked-integration-' + loaderName
+    archiveVersion = '1'
+    from sourceSets.integration.output
+    from generatedMetadata
+    if (loaderName == 'forge') manifest { attributes 'MixinConfigs': 'portallinked.integration.mixins.json' }
+}

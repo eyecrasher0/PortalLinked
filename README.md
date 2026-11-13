@@ -1,13 +1,33 @@
 # PortalLinked
 
+[![GitHub release](https://img.shields.io/github/v/release/eyecrasher0/PortalLinked?label=release)](https://github.com/eyecrasher0/PortalLinked/releases)
+[![Modrinth](https://img.shields.io/modrinth/dt/portallinked?label=modrinth)](https://modrinth.com/plugin/portallinked)
+[![CurseForge Mods](https://img.shields.io/curseforge/dt/1797635?label=curseforge%20mods)](https://www.curseforge.com/projects/1797635)
+[![CurseForge Plugins](https://img.shields.io/curseforge/dt/1797384?label=curseforge%20plugins)](https://www.curseforge.com/projects/1797384)
+[![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](https://github.com/eyecrasher0/PortalLinked/blob/main/LICENSE)
+
 ![PortalLinked](branding/icon.png)
 
 PortalLinked remembers each player's portal pair, returning them to their original
 portal when they retrace a Nether trip. New routes retain vanilla 1:8 scaling
-and portal generation.
+and portal generation. Install one server plugin or mod; players need no client mod.
 
-**Author:** EyeCrasher · **Platform:** Paper 26.3 · **Java:** 25 ·
+**Author:** EyeCrasher · **Minecraft:** 26.3 · **Java:** 25 ·
 **License:** GPL-3.0-only
+
+## Platforms
+
+| Server | Install this file | Directory |
+| --- | --- | --- |
+| Paper, Spigot, Purpur, Folia | `portallinked-bukkit-1.1.0+26.3.jar` | `plugins/` |
+| Fabric | `portallinked-fabric-1.1.0+26.3.jar` | `mods/` |
+| NeoForge | `portallinked-neoforge-1.1.0+26.3.jar` | `mods/` |
+| Forge | `portallinked-forge-1.1.0+26.3.jar` | `mods/` |
+
+Use only the file for your server. Fabric API is not required. Minimum loader
+versions are Fabric Loader 0.20.1, NeoForge 26.3.0.102 and Forge 66.1.5.
+This release targets Minecraft 26.3; older Minecraft versions are not included.
+Folia is verified against its 26.3 build 6 alpha and uses region/entity schedulers.
 
 ## Behavior
 
@@ -20,19 +40,29 @@ and portal generation.
   world border and exit generation.
 - If the original portal is extinguished, destroyed, resized or outside the
   current world border, Minecraft's normal portal lookup is used. The same
-  applies when Paper's live Nether ceiling policy excludes the saved portal.
-- Saves the pair in the player's PersistentDataContainer, alongside normal
-  player saves, logout and orderly server shutdown. The first crossing after
-  installation establishes a pair.
+  applies when the player's current body cannot fit at the remembered exit or
+  Paper's live Nether ceiling policy excludes the saved portal.
+- Saves the pair alongside normal player saves, logout and orderly server
+  shutdown. Plugins use the player's PersistentDataContainer; mods use player
+  NBT. No external database is needed. The first crossing after installation
+  establishes a pair. A crash before a player save can lose the latest change.
 - Cancelled or failed crossings do not replace a valid saved pair. Other
   plugins can cancel or redirect portal transitions.
 - End portals, mobs and items keep their existing behavior.
-- Uses server Player events and UUIDs, including players connected through
-  Geyser. No client mod or player setup is required; defaults work immediately.
+- Uses player UUIDs, including players connected through Geyser on a compatible
+  server. No client mod or player setup is required; defaults work immediately.
+
+On Folia, new trips retain the server's native asynchronous portal travel.
+Remembered returns validate the destination on its owning region and move the
+player with `teleportAsync`. They use a clear position in the original portal
+and emit cancellable player portal/teleport events. Mounted players and swept
+contacts that already ended outside the portal volume retain native Folia routing.
+Player data is changed only on the owning region/entity thread, including native
+arrival and teleport completion callbacks.
 
 ## Administration
 
-PortalLinked creates `plugins/PortalLinked/config.yml` on first start:
+The plugin creates `plugins/PortalLinked/config.yml` on first start:
 
 ```yaml
 enabled: true
@@ -52,61 +82,101 @@ are skipped in both directions. Existing saved links are retained.
 `debug: true` logs saved links, remembered returns and unavailable return portals
 in English. It is off by default.
 
+The Fabric, NeoForge and Forge mods create `config/portallinked.json`:
+
+```json
+{
+  "enabled": true,
+  "excluded-worlds": [],
+  "debug": false
+}
+```
+
+For mods, exclusions use complete, case-sensitive dimension identifiers, such as
+`["minecraft:the_nether"]`. The settings have the same effect as the plugin
+settings. Both the namespace and path must be non-empty; `the_nether`,
+`:the_nether` and `minecraft:` are invalid. Keep all three fields present with
+the types shown above.
+
 Apply configuration changes with `/portallinked reload`. The optional admin
-commands require `portallinked.admin`, granted to operators by default:
+commands require `portallinked.admin` on Bukkit servers, granted to operators by
+default. The mods require vanilla gamemaster command permission (operator level 2):
 
 - `/portallinked reload` reads the configuration from disk.
 - `/portallinked status` shows the active settings.
 - `/portallinked forget [online-player]` clears only that player's saved pair.
-  Omit the name to clear your own pair. The console must supply an exact online
-  player name. Their next crossing uses vanilla lookup and establishes a new pair.
+  Omit the name to clear your own pair. The Bukkit console must supply an exact
+  online player name; mods also accept vanilla single-player selectors. Their
+  next crossing uses vanilla lookup and establishes a new pair.
 
 Successful reloads clear pending crossings. Forgetting also clears the selected
 player's pending crossing, so an arrival already in progress cannot recreate that link.
-If a key is missing or null, YAML syntax is invalid, or a setting has the wrong
+If a key is missing or null, YAML/JSON syntax is invalid, or a setting has the wrong
 type, reload reports failure and retains the previous active settings, pending
 crossings and saved links. Fix the file and reload again. If the initial
 configuration is invalid, linking stays disabled until a valid reload succeeds.
 
 ## Installation
 
-Stop the server, place `portallinked-paper-1.0.0+26.3.jar` in `plugins/`, then start
-the server. Replace any earlier development build rather than loading both.
-To uninstall, stop the server, remove the JAR and start it again.
+Stop the server, place the matching file from the platform table in `plugins/`
+or `mods/`, then start the server. Replace earlier PortalLinked JARs instead of
+loading multiple copies. To uninstall, stop the server, remove the JAR and start
+it again. Bukkit 1.0.0 player links and configuration remain compatible with 1.1.0.
+Mod saves are shared between Fabric, NeoForge and Forge; Bukkit player-link data
+is not automatically converted when changing between a plugin and a mod server.
 
 ## Build
 
 Use JDK 25 and the included Gradle wrapper:
 
 ```sh
-cd paper/26.3
+cd bukkit/26.3
 ./gradlew clean build
 python3 tools/integration.py --accept-eula
 ```
 
-The plugin JAR is generated at `paper/26.3/build/libs/portallinked-paper-1.0.0+26.3.jar`.
-On Windows, use `gradlew.bat clean build`. Each platform/version directory is
-a standalone project. Paper is a compile-only dependency and is not bundled
-with the plugin. The integration command starts disposable local test servers
-and requires accepting the Minecraft EULA with `--accept-eula`.
+Use `--engine spigot`, `--engine purpur` or `--engine folia` for the other plugin
+servers. The Spigot check builds its server with official BuildTools and requires
+Git and network access. SDK download checksums/source revisions are pinned.
+
+For a mod, run `./gradlew clean build integrationFixture` in `fabric/26.3`,
+`neoforge/26.3` or `forge/26.3`, then from the repository root run:
+
+```sh
+python3 tools/mod-integration.py --loader fabric --accept-eula
+```
+
+Replace `fabric` with the matching loader. Each platform's runtime JAR is in its
+module's `build/libs/` directory. Integration fixture JARs are disposable test
+tools and must not be distributed or installed on a real server.
+
+On Windows use `gradlew.bat`; the native integration runners target Linux.
+Each platform/version directory has its own Gradle project and wrapper. Build
+from a complete repository checkout: mod projects include `mod-common/26.3` and
+the root branding resources. Platform APIs and Minecraft are not bundled in
+runtime JARs. Integration starts disposable, loopback-only test servers and
+requires accepting the Minecraft EULA with `--accept-eula`.
 
 Paper plugins have no standard Mod Menu icon field. The supplied icon is included
 in the JAR and used on the project pages.
 
-The test suite covers routing and persisted-data validation. The native fixture
-uses player and portal transitions on Paper 26.3 build 244, including a full
-shutdown/restart, live Nether ceiling changes, configuration reload, admin
-permissions, invalid configuration and forgetting individual player links.
-No external Java or Bedrock clients were connected during the release checks.
+The test suites cover routing, persisted data, native transitions, actual
+shutdown/restart, configuration reload, permissions, invalid settings and
+individual link resets. Bukkit checks include live Paper ceiling changes where
+the server supports that policy. Folia checks run across region schedulers;
+the mod checks also cover native End, mob/item and respawn behavior.
+No external Java or Bedrock clients were connected during release checks;
+automated transitions do not establish end-to-end client compatibility.
 
 ## License
 
 Copyright (C) 2026 EyeCrasher. Licensed under the **GNU General Public License,
 version 3 only** (`GPL-3.0-only`). See [LICENSE](LICENSE) and [NOTICE](NOTICE).
-Distribute the corresponding source archive alongside the plugin JAR.
+Distribute the complete corresponding source archive alongside runtime JARs.
 
-Implemented independently using the Paper API and Paper's live per-world
-configuration for portal eligibility.
+Implemented independently using the Bukkit/Paper APIs, loader SDKs and native
+Minecraft portal transitions. Paper's live per-world configuration is respected
+when the server provides it.
 API references: [PlayerPortalEvent](https://jd.papermc.io/paper/26.3/org/bukkit/event/player/PlayerPortalEvent.html),
 [PlayerChangedWorldEvent](https://jd.papermc.io/paper/26.3/org/bukkit/event/player/PlayerChangedWorldEvent.html),
 [PersistentDataContainer](https://jd.papermc.io/paper/26.3/org/bukkit/persistence/PersistentDataContainer.html).

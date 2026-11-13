@@ -1,0 +1,37 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+group = 'dev.eyecrasher.portallinked'
+version = '1.1.0+26.3'
+base { archivesName = 'portallinked-neoforge' }
+
+repositories { mavenCentral() }
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
+neoForge {
+    version = '26.3.0.102'
+    mods { portallinked { sourceSet(sourceSets.main) } }
+}
+sourceSets.main {
+    java.srcDir '../../mod-common/26.3/src/main/java'
+    resources.srcDir '../../mod-common/26.3/src/main/resources'
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+}
+processResources {
+    filesMatching('META-INF/neoforge.mods.toml') { expand version: project.version }
+    from('../../branding/icon.png')
+}
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+}
+
+apply from: '../../gradle/mod-integration.gradle'
