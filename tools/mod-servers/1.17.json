@@ -1,0 +1,11 @@
+{
+  "fabric": {
+    "minecraft": "1.17",
+    "version": "0.20.1",
+    "kind": "fabric",
+    "url": "https://meta.fabricmc.net/v2/versions/loader/1.17/0.20.1/1.1.2/server/jar",
+    "sha256": "1806ef5eb10fd38713ee77594f408ed47dc7948326b3ec6f5d7f19a085a8fd14",
+    "mod_version": "1.2.0",
+    "level_type": "flat"
+  }
+}

@@ -175,11 +175,13 @@
       "platforms": {
         "paper": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified",
+          "build_java": 21
         },
         "purpur": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified",
+          "build_java": 21
         },
         "folia": {
           "available": false,
@@ -187,17 +189,19 @@
         },
         "spigot": {
           "available": true,
-          "state": "planned",
+          "state": "native-verified",
           "refs": {
             "BuildData": "3cec511b16ffa31cb414997a14be313716882e12",
             "Bukkit": "fc92ca8dd3b37dbc440de9d61575af17226cb8f0",
             "CraftBukkit": "ec116f636d55eccae1d5bb0b716b1db3b245ccab",
             "Spigot": "a483d2c9d916d4d05ad0923f2c9472e3bac64bc8"
-          }
+          },
+          "build_java": 21
         },
         "fabric": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified",
+          "build_java": 21
         },
         "forge": {
           "available": false,
