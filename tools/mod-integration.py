@@ -40,7 +40,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--loader', choices=['fabric', 'neoforge', 'forge'], required=True)
     parser.add_argument('--minecraft', choices=SUPPORTED_MINECRAFT, default='26.3')
-    parser.add_argument('--scenario', choices=['blocked-return', 'dimension-identifiers'])
+    parser.add_argument('--scenario', choices=['blocked-return', 'dimension-identifiers', 'adjacent-arrival'])
     parser.add_argument('--accept-eula', action='store_true')
     parser.add_argument('--cache', type=Path, default=ROOT / 'build/mod-integration-cache')
     parser.add_argument('--sync-chunk-writes', choices=['true', 'false'], default='true')
