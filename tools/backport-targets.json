@@ -669,19 +669,19 @@
       "platforms": {
         "paper": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified"
         },
         "purpur": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified"
         },
         "folia": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified"
         },
         "spigot": {
           "available": true,
-          "state": "planned",
+          "state": "native-verified",
           "refs": {
             "BuildData": "172197ceb99364701937947ea7fc424ecf1bb694",
             "Bukkit": "ef888c0741538690fb9adff0b401cfc868cb62ff",
@@ -691,18 +691,21 @@
         },
         "fabric": {
           "available": true,
-          "state": "planned"
+          "state": "native-verified",
+          "build_java": 21
         },
         "forge": {
           "available": true,
           "sdk": "1.20.2-48.1.0",
-          "state": "planned"
+          "state": "native-verified",
+          "build_java": 17
         },
         "neoforge": {
           "available": true,
           "sdk": "20.2.93",
           "artifact": "net.neoforged:neoforge",
-          "state": "planned"
+          "state": "native-verified",
+          "build_java": 21
         }
       }
     },
