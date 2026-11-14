@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0 — Backports (unreleased)
+
+- Adds exact-version server builds for 1.7.10, 1.8.9, 1.12.2 and every stable
+  Minecraft release from 1.16.5 through 26.2. The published 26.3 release remains
+  available as 1.1.0. See [the exact platform matrix](tools/backport-targets.json).
+- Includes Paper, Spigot, Purpur, Folia, Fabric, NeoForge and Forge where an
+  official SDK exists for that exact Minecraft release.
+- Preserves personal portal returns, native new routes and exit creation,
+  protection events, whole-frame identities and administrator settings.
+- Targets Java 8 for 1.7.10, 1.8.9, 1.12.2 and 1.16.5; Java 16 for 1.17.x;
+  later releases use their recorded Java 17, 21 or 25 runtime.
+- Stores Bukkit 1.12.2 links in one owned scoreboard tag in normal player NBT;
+  newer Bukkit builds retain PDC storage. No external database is needed.
+- Verifies every implemented server with real native transitions, player saves
+  and complete process restarts. Historical SDKs are pinned to exact versions
+  and checksums. Complete mapping files and server binaries are not distributed.
+
 ## 1.1.0 — Minecraft 26.3
 
 - Adds Spigot, Purpur and Folia support in a single Bukkit plugin JAR.

@@ -66,6 +66,7 @@ jobs:
           MINECRAFT: ${{ matrix.minecraft }}
           PLATFORM: ${{ matrix.platform }}
         run: |
+          export PORTALLINKED_FIXTURE_JAVAC="$JAVA_HOME/bin/javac"
           export JAVA_HOME="$RUNTIME_JAVA_HOME"
           args=(native --minecraft "$MINECRAFT" --platform "$PLATFORM" --accept-eula)
           if [[ -n "${INSTALLER_JAVA_HOME:-}" ]]; then

@@ -54,7 +54,7 @@ def main():
                 sdk = json.loads(sdk_path.read_text()).get(platform)
                 if sdk is None or (loader != 'bukkit' and sdk.get('minecraft') != row['minecraft']):
                     parser.error(f'Implemented target has no exact SDK definition: {row["minecraft"]} / {platform}')
-                legacy = loader == 'forge' and row['java'] == 8
+                legacy = loader == 'forge' and row['minecraft'] in ['1.7.10', '1.8.9', '1.12.2']
                 entries.append({
                     'minecraft': row['minecraft'], 'platform': platform, 'module': str(module),
                     'java': row['java'], 'build_java': target.get('build_java',

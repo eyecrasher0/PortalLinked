@@ -40,7 +40,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--loader', choices=['fabric', 'neoforge', 'forge'], required=True)
     parser.add_argument('--minecraft', choices=SUPPORTED_MINECRAFT, default='26.3')
-    parser.add_argument('--scenario', choices=['blocked-return', 'dimension-identifiers', 'adjacent-arrival'])
+    parser.add_argument('--scenario', choices=['blocked-return', 'dimension-identifiers', 'adjacent-arrival', 'native-save'])
     parser.add_argument('--accept-eula', action='store_true')
     parser.add_argument('--cache', type=Path, default=ROOT / 'build/mod-integration-cache')
     parser.add_argument('--sync-chunk-writes', choices=['true', 'false'], default='true')
@@ -52,11 +52,15 @@ def main():
     java = shutil.which(args.java)
     if java is None:
         raise RuntimeError('Java executable was not found')
+    java = str(Path(java).resolve())
     installer_java = shutil.which(args.installer_java) if args.installer_java else java
     if installer_java is None:
         parser.error('Installer Java executable was not found')
+    installer_java = str(Path(installer_java).resolve())
     loader = args.loader
     minecraft = args.minecraft
+    if args.scenario == 'native-save' and minecraft != '1.17':
+        parser.error('--scenario native-save is specific to the Minecraft 1.17 fixture')
     definitions = ROOT / 'tools/mod-servers.json' if minecraft == '26.3' else SERVER_DEFINITIONS / (minecraft + '.json')
     servers = json.loads(definitions.read_text())
     if loader not in servers:
@@ -93,7 +97,7 @@ def main():
     shutil.copy2(fixture, stage / 'mods' / fixture.name)
     if definition['kind'] in ('installer', 'legacy-forge'):
         (stage / 'libraries').symlink_to(cache / 'libraries', target_is_directory=True)
-        native_jars = cache.glob('*.jar') if definition['kind'] == 'legacy-forge' else cache.glob('*-shim.jar')
+        native_jars = cache.glob('*.jar') if definition.get('server_jar') else cache.glob('*-shim.jar')
         for shim in native_jars:
             (stage / shim.name).symlink_to(shim)
     (stage / 'eula.txt').write_text('eula=true\n')
@@ -101,8 +105,14 @@ def main():
         available.bind(('127.0.0.1', 0)); port = available.getsockname()[1]
     generator = json.dumps({'layers': [{'block': 'minecraft:bedrock', 'height': 1},
                                       {'block': 'minecraft:grass_block', 'height': 1}], 'biome': 'minecraft:plains'})
+    if minecraft in ('1.16.5', '1.17', '1.17.1'):
+        settings = json.loads(generator)
+        settings['structures'] = {'structures': {}}
+        if minecraft == '1.17':
+            settings.pop('biome')
+        generator = json.dumps(settings)
     legacy = definition['kind'] == 'legacy-forge'
-    level_type = 'FLAT' if legacy else 'minecraft:flat'
+    level_type = definition.get('level_type', 'FLAT' if legacy else 'minecraft:flat')
     if legacy:
         generator = '3;minecraft:bedrock,2*minecraft:dirt,minecraft:grass;1;'
     (stage / 'server.properties').write_text(
