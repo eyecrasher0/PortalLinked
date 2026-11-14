@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.eyecrasher.portallinked.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "server": [
+    "CommandsMixin",
+    "MinecraftServerMixin",
+    "EntityPortalMixin",
+    "ServerPlayerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "refmap": "portallinked.refmap.json"
+}

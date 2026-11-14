@@ -1,0 +1,27 @@
+{
+  "paper": {
+    "kind": "paperclip",
+    "version": "1.16.5-794",
+    "url": "https://fill-data.papermc.io/v1/objects/e67da4851d08cde378ab2b89be58849238c303351ed2482181a99c2c2b489276/paper-1.16.5-794.jar",
+    "sha256": "e67da4851d08cde378ab2b89be58849238c303351ed2482181a99c2c2b489276"
+  },
+  "purpur": {
+    "kind": "paperclip",
+    "version": "1.16.5-1171",
+    "url": "https://api.purpurmc.org/v2/purpur/1.16.5/1171/download",
+    "sha256": "bc041cc71ee321a3b36253f6ac6da091b77c926821dbb82ea762003426c43626"
+  },
+  "spigot": {
+    "kind": "buildtools",
+    "version": "1.16.5",
+    "buildtools_url": "https://hub.spigotmc.org/jenkins/job/BuildTools/201/artifact/target/BuildTools.jar",
+    "buildtools_sha256": "81ed06f5ce5fb705b558bf9b3cc2c5c53cdd9742406c5338c452faa13a1e1c24",
+    "refs": {
+      "BuildData": "f0a5ed1aeff8156ba4afa504e190c838dd1af50c",
+      "Bukkit": "7e29f7654411f0a17ebbcc2c3f6a7dfe93bff39e",
+      "CraftBukkit": "af1a23291836523344a6ab0c233c37efc763ed86",
+      "Spigot": "9fb885e86def1d9d86e25233c9b5a4de45b7a09d"
+    },
+    "revision": "1.16.5"
+  }
+}
