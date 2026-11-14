@@ -3,7 +3,7 @@
 # Copyright (C) 2026 EyeCrasher
 from pathlib import Path
 import hashlib,json,re,urllib.request
-import argparse, os, subprocess, zipfile
+import argparse, os, subprocess, zipfile, tempfile
 parser=argparse.ArgumentParser(description="Compose the pinned Spigot SDK namespace for a native fixture.")
 parser.add_argument('--builder',type=Path,required=True)
 parser.add_argument('--minecraft',required=True)
@@ -107,8 +107,12 @@ for canonical in needed:
  if spigot!=canonical:symbols['c.'+canonical.replace('/','.')]=spigot.replace('/','.')
 if args.runtime_symbols:
  args.runtime_symbols.write_text('# SPDX-License-Identifier: GPL-3.0-only\n# Copyright (C) 2026 EyeCrasher\n# Reflection symbol subset derived from the pinned Spigot SDK.\n'+'\n'.join(k+'='+v for k,v in sorted(symbols.items()))+'\n')
-mapping=builder/'work'/'portallinked-mojang-to-spigot.csrg'
-mapping.write_text('\n'.join(full)+'\n')
+# Each remapper owns an immutable mapping file. Parallel native fixtures can
+# share one SDK cache without truncating another remapper's input.
+with tempfile.NamedTemporaryFile(mode='w',prefix='portallinked-mojang-to-spigot-',suffix='.csrg',
+                                 dir=builder/'work',delete=False) as generated_mapping:
+ generated_mapping.write('\n'.join(full)+'\n')
+mapping=Path(generated_mapping.name)
 if args.input:
  development=list((builder/'Spigot/Spigot-Server/target').glob('*-remapped-mojang.jar'))
  if len(development)!=1:raise RuntimeError('Expected one exact remapped development SDK')
