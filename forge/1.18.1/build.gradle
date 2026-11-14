@@ -1,0 +1,68 @@
+buildscript {
+    repositories { maven { url = 'https://maven.neoforged.net/releases' }; mavenCentral() }
+    dependencies { classpath 'org.spongepowered:mixingradle:0.7.38' }
+}
+
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle' version '6.0.54'
+}
+
+apply plugin: 'org.spongepowered.mixin'
+
+group = 'dev.eyecrasher.portallinked'
+version = '1.2.0+1.18.1'
+base { archivesName = 'portallinked-forge' }
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+    withSourcesJar()
+}
+minecraft {
+    mappings channel: 'official', version: '1.18.1'
+    runs { server { args '--nogui' } }
+}
+repositories {
+    maven { url = 'https://repo.spongepowered.org/maven' }
+    mavenCentral()
+}
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.18.1-39.1.2'
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+sourceSets.main {
+    java.srcDir '../../mod-common/1.18.1/src/main/java'
+    resources.srcDir '../../mod-common/1.18.1/src/main/resources'
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 17
+}
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    filesMatching('META-INF/mods.toml') { expand version: project.version }
+    filesMatching('portallinked.mixins.json') { filter { line -> line.replace('JAVA_21', 'JAVA_17') } }
+    from('../../branding/icon.png')
+}
+jar { manifest { attributes 'MixinConfigs': 'portallinked.mixins.json,portallinked.travel.mixins.json' } }
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+}
+
+ext.portallinkedFixtureCompatibility = 'JAVA_17'
+ext.portallinkedFixtureRefmap = 'portallinked.integration.refmap.json'
+apply from: '../../gradle/mod-integration.gradle'
+
+dependencies { integrationAnnotationProcessor 'org.spongepowered:mixin:0.8.5:processor' }
+mixin {
+    add sourceSets.main, 'portallinked.refmap.json'
+    add sourceSets.integration, 'portallinked.integration.refmap.json'
+}
+reobf { integrationFixture {} }
+tasks.named('jar') { finalizedBy 'reobfJar' }
+tasks.named('integrationFixture') { finalizedBy 'reobfIntegrationFixture' }
+tasks.named('build') { dependsOn 'reobfIntegrationFixture' }
+
+tasks.named('sourcesJar') { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }
