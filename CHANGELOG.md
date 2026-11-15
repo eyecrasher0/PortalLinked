@@ -12,6 +12,10 @@
 - Fixes accepted Folia returns losing their destination when a player walks
   through the frame while the exit region is loading. Unrelated teleports still
   cancel the pending return.
+- Completes native fallback and records its actual arrival when a saved Folia
+  exit is unavailable or validation expires after the player leaves the frame.
+- Includes the Folia fixes in a new 1.2.0 Bukkit build for Minecraft 26.3.
+  Published 1.1.0 files and the unchanged 26.3 mod builds remain available.
 - Clarifies that Forge 1.7.10 requires a Forge/FML client handshake, while
   PortalLinked itself remains server-only.
 - Targets Java 8 for 1.7.10, 1.8.9, 1.12.2 and 1.16.5; Java 16 for 1.17.x;

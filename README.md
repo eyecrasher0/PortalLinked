@@ -17,6 +17,11 @@ and portal generation. Install one server plugin or mod; players need no client 
 
 ## Platforms
 
+The table lists the published 1.1.0 files for Minecraft 26.3. The unreleased
+1.2.0 update adds the [backport builds](BACKPORTS.md) and
+`portallinked-bukkit-1.2.0+26.3.jar` with the Folia fixes. The three unchanged
+26.3 mod builds retain version 1.1.0. Published files are not replaced.
+
 | Server | Install this file | Directory |
 | --- | --- | --- |
 | Paper, Spigot, Purpur, Folia | `portallinked-bukkit-1.1.0+26.3.jar` | `plugins/` |
@@ -61,7 +66,9 @@ player with `teleportAsync`. They use a clear position in the original portal
 and emit cancellable player portal/teleport events. The unreleased return fix keeps
 a native-ready crossing eligible while its destination loads, even if the player
 walks beyond the frame. Cancellation or an unrelated teleport invalidates that
-pending return. Mounted players retain native Folia routing.
+pending return. If its saved exit is unavailable or validation expires, the
+accepted crossing continues through native lookup and records its actual exit.
+Mounted players retain native Folia routing.
 Player data is changed only on the owning region/entity thread, including native
 arrival and teleport completion callbacks.
 

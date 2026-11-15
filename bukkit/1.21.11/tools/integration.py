@@ -190,7 +190,7 @@ def main():
                     "-Dterminal.jline=false", "-Dterminal.ansi=false", f"-Dportal.phase={phase}",
                     f"-Dportallinked.scenario={args.scenario or ''}",
                     "-jar", "server.jar", "--nogui"], stage, log,
-                   timeout=600 if args.engine == "spigot" else 300)
+                   timeout=600 if args.engine in {"spigot", "folia"} else 300)
         # Event dispatch catches plugin exceptions and may let vanilla travel
         # continue, so a successful fixture result alone must not hide them.
         if any("Could not pass event" in line and ("to PortalLinked " in line or "to PortalIntegration " in line)

@@ -223,6 +223,7 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                     return entered.thenCompose(done -> player(probe, () -> {
                         probe.getBukkitEntity().setGameMode(org.bukkit.GameMode.SURVIVAL);
                         byte[] before = data(probe);
+                        // This fresh player's outward trip is the exact SDK's native effect control.
                         sounds[0] = portalSounds.getOrDefault(probe.getUUID(), 0);
                         if (mode.equals("cancel")) cancelFallback = probe.getUUID();
                         trigger(probe);
@@ -269,8 +270,8 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                                                     "fallback stores the complete actual endpoint " + endpoint + ": " + label);
                                         }
                                         check(probe.getBukkitEntity().getPortalCooldown() > 0
-                                                        && portalSounds.getOrDefault(probe.getUUID(), 0) == sounds[0] + 1,
-                                                "native fallback keeps cooldown and one portal effect: " + label);
+                                                        && portalSounds.getOrDefault(probe.getUUID(), 0) == sounds[0] * 2,
+                                                "native fallback keeps cooldown and matches the native control's portal effects: " + label);
                                     } else {
                                         check(probe.getBukkitEntity().getWorld().equals(shared) && Arrays.equals(before, data(probe)),
                                                 "invalidated fallback preserves world and previous pair: " + label);

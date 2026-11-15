@@ -12,6 +12,9 @@ PortalLinked. Only **26.3 / PortalLinked 1.1.0** is released at present.
 All **PortalLinked 1.2.0** backport adapters have completed local native
 verification. They remain unreleased until publication and CI verification.
 The queue records native verification separately from released builds.
+The Folia return follow-up is being revalidated against each affected exact SDK.
+It also produces a new **1.2.0 Bukkit JAR for 26.3**; the published 1.1.0 artifacts
+and the unchanged 26.3 mod builds keep their existing versions.
 
 Folia 26.2 build7, 26.1.2 build8 and 1.21.11 build14 have an upstream limitation: its native asynchronous Nether
 travel path does not enforce `allowEnteringNetherUsingPortals`. PortalLinked
