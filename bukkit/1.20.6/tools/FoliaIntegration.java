@@ -73,6 +73,7 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     private World overworld, nether;
     private boolean cancel;
     private UUID cancelReturn;
+    private UUID cancelFallback;
     private UUID reloadOnRemoval;
     private CompletableFuture<Boolean> removalReload;
     private final Map<UUID, Runnable> afterArrival = new ConcurrentHashMap<>();
@@ -175,8 +176,120 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
     }
 
     private CompletableFuture<Void> sourceExits() {
-        return sourceExit(false, false).thenCompose(v -> sourceExit(true, false))
+        return fallbackExits().thenCompose(v -> sourceExit(false, false)).thenCompose(v -> sourceExit(true, false))
                 .thenCompose(v -> sourceExit(true, true)).thenCompose(v -> interruptedReturn());
+    }
+
+    private CompletableFuture<Void> fallbackExits() {
+        CompletableFuture<Void> work = CompletableFuture.completedFuture(null);
+        List<String> modes = new ArrayList<>(List.of("invalid", "expired", "teleport", "reload"));
+        if (org.bukkit.event.Cancellable.class.isAssignableFrom(EntityPortalEnterEvent.class)) modes.add("cancel");
+        for (Axis axis : new Axis[] {Axis.X, Axis.Z}) for (boolean homeNether : new boolean[] {false, true})
+            for (String mode : modes) work = work.thenCompose(v -> fallbackExit(axis, homeNether, mode));
+        return work;
+    }
+
+    private CompletableFuture<Void> fallbackExit(Axis axis, boolean homeNether, String mode) {
+        boolean x = axis == Axis.X, expired = mode.equals("expired");
+        World home = homeNether ? nether : overworld, shared = homeNether ? overworld : nether;
+        int variant = List.of("invalid", "expired", "teleport", "reload", "cancel").indexOf(mode);
+        int base = homeNether ? 100004 + variant * 1024 : 320032 + variant * 8192;
+        int nativeExit = base - (homeNether ? 8 : 32), other = homeNether ? nativeExit * 8 : nativeExit / 8;
+        String label = "axis=" + axis + " homeNether=" + homeNether + " mode=" + mode;
+        return clearForScale(home, axis, nativeExit - 3, base + 4)
+                .thenCompose(v -> clearForScale(shared, axis, other - 3, other + 4))
+                .thenCompose(v -> frame(home, x ? base : 0, 64, x ? 0 : base, axis, 2, 3))
+                .thenCompose(v -> frame(home, x ? nativeExit : 0, 64, x ? 0 : nativeExit, axis, 2, 3))
+                .thenCompose(v -> frame(shared, x ? other : 0, 64, x ? 0 : other, axis, 2, 3))
+                .thenCompose(v -> bot("FallbackExit", UUID.randomUUID(), home,
+                        x ? base + .5 : .5, 64, x ? .5 : base + .5))
+                .thenCompose(probe -> travel(probe, shared, true).thenCompose(v -> player(probe, () -> {
+                    check(probe.getBukkitEntity().getWorld().equals(shared)
+                                    && Math.abs((x ? probe.getX() : probe.getZ()) - other) < 2,
+                            "fallback starts at the expected actual native arrival: " + label);
+                    return null;
+                })).thenCompose(v -> {
+                    CompletableFuture<Void> entered = new CompletableFuture<>(), release = new CompletableFuture<>(), finished = new CompletableFuture<>();
+                    Bukkit.getRegionScheduler().execute(this, home, (x ? base : 0) >> 4, (x ? 0 : base) >> 4, () -> {
+                        entered.complete(null);
+                        try {
+                            release.get(20, TimeUnit.SECONDS);
+                            if (!expired) for (int col = 0; col < 2; col++) for (int y = 64; y < 67; y++)
+                                home.getBlockAt(x ? base + col : 0, y, x ? 0 : base + col).setType(Material.AIR, false);
+                            finished.complete(null);
+                        } catch (Exception ex) { finished.completeExceptionally(ex); }
+                    });
+                    int[] sounds = new int[1];
+                    return entered.thenCompose(done -> player(probe, () -> {
+                        probe.getBukkitEntity().setGameMode(org.bukkit.GameMode.SURVIVAL);
+                        byte[] before = data(probe);
+                        sounds[0] = portalSounds.getOrDefault(probe.getUUID(), 0);
+                        if (mode.equals("cancel")) cancelFallback = probe.getUUID();
+                        trigger(probe);
+                        probe.setPos(x ? other + .5 : 4.5, 64, x ? 4.5 : other + .5);
+                        check(!probe.getBukkitEntity().getBoundingBox().overlaps(new org.bukkit.util.BoundingBox(
+                                        x ? other : 0, 64, x ? 0 : other, x ? other + 2 : 1, 67, x ? 1 : other + 2)),
+                                "accepted fallback player leaves the source body volume: " + label);
+                        return before;
+                    })).thenCompose(before -> {
+                        CompletableFuture<Void> wait;
+                        if (expired) {
+                            wait = new CompletableFuture<>();
+                            Bukkit.getGlobalRegionScheduler().runDelayed(this, task -> wait.complete(null), 220);
+                        } else wait = outsideTicks(probe, 24).thenCompose(done -> player(probe, () -> {
+                            check(process(probe) == null && !finished.isDone(),
+                                    "fallback validation waits beyond native progress expiry: " + label);
+                            return null;
+                        }));
+                        return wait.thenCompose(done -> mode.equals("teleport")
+                                ? relocate(probe, new Location(shared, x ? other + .5 : 5.5, 64, x ? 5.5 : other + .5))
+                                : mode.equals("reload") ? this.<Void>global(() -> { writeSettings(false, List.of()); return null; })
+                                : CompletableFuture.<Void>completedFuture(null))
+                                .thenCompose(done -> { release.complete(null); return finished; })
+                                .thenCompose(done -> mode.equals("invalid") || expired
+                                        ? awaitWorldWithoutContact(probe, home, 0) : delay(probe, 8))
+                                .thenCompose(done -> this.<Void>player(probe, () -> {
+                                    if (mode.equals("invalid") || expired) {
+                                        check(probe.getBukkitEntity().getWorld().equals(home)
+                                                        && Math.abs((x ? probe.getX() : probe.getZ()) - nativeExit) < 2,
+                                                "accepted fallback reaches the native neighbor without reentry: " + label);
+                                        byte[] pair = data(probe);
+                                        check(pair != null && !Arrays.equals(before, pair),
+                                                "accepted fallback commits a new actual crossing: " + label);
+                                        java.nio.ByteBuffer encoded = java.nio.ByteBuffer.wrap(pair);
+                                        check(pair.length == 63 && encoded.get(0) == 1, "fallback keeps the persisted pair format: " + label);
+                                        for (int endpoint = 0; endpoint < 2; endpoint++) {
+                                            encoded.position(endpoint == 0 ? 1 : 32);
+                                            World expectedWorld = endpoint == 0 ? shared : home;
+                                            int along = endpoint == 0 ? other : nativeExit;
+                                            check(new UUID(encoded.getLong(), encoded.getLong()).equals(expectedWorld.getUID())
+                                                            && encoded.getInt() == (x ? along : 0) && encoded.getInt() == 64
+                                                            && encoded.getInt() == (x ? 0 : along) && encoded.get() == (x ? 0 : 1)
+                                                            && encoded.get() == 2 && encoded.get() == 3,
+                                                    "fallback stores the complete actual endpoint " + endpoint + ": " + label);
+                                        }
+                                        check(probe.getBukkitEntity().getPortalCooldown() > 0
+                                                        && portalSounds.getOrDefault(probe.getUUID(), 0) == sounds[0] + 1,
+                                                "native fallback keeps cooldown and one portal effect: " + label);
+                                    } else {
+                                        check(probe.getBukkitEntity().getWorld().equals(shared) && Arrays.equals(before, data(probe)),
+                                                "invalidated fallback preserves world and previous pair: " + label);
+                                        check(portalSounds.getOrDefault(probe.getUUID(), 0) == sounds[0],
+                                                "invalidated fallback produces no portal effect: " + label);
+                                    }
+                                    cancelFallback = null;
+                                    return null;
+                                })).thenCompose(done -> mode.equals("reload")
+                                        ? this.<Void>global(() -> { writeSettings(true, List.of()); return null; })
+                                        : CompletableFuture.<Void>completedFuture(null));
+                    }).whenComplete((done, error) -> release.complete(null));
+                }));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void cancelFallbackContact(EntityPortalEnterEvent event) {
+        if (event.getEntity().getUniqueId().equals(cancelFallback) && (Object) event instanceof org.bukkit.event.Cancellable cancelled)
+            cancelled.setCancelled(true);
     }
 
     private CompletableFuture<Void> sourceExit(boolean reenter, boolean creative) {

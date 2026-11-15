@@ -6,6 +6,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.function.Consumer;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
@@ -36,6 +37,25 @@ final class FoliaNative {
             Field time = Nms.declaredField(entityType, "portalTime"); time.setAccessible(true);
             time.setInt(entity, delay - 1);
             return true;
+        } catch (ReflectiveOperationException ex) { return false; }
+    }
+
+    static boolean resume(Player player, Location contact, World target, Runnable completed) {
+        try {
+            Object entity = handle(player);
+            Class<?> entityType = Nms.type("net.minecraft.world.entity.Entity");
+            Class<?> levelType = Nms.type("net.minecraft.server.level.ServerLevel");
+            Class<?> positionType = Nms.type("net.minecraft.core.BlockPos");
+            Object position = positionType.getConstructor(int.class, int.class, int.class)
+                    .newInstance(contact.getBlockX(), contact.getBlockY(), contact.getBlockZ());
+            Class<?> portalType = Nms.type("net.minecraft.world.entity.Entity$PortalType");
+            Object destination = target.getClass().getMethod("getHandle").invoke(target);
+            Consumer<Object> callback = moved -> completed.run();
+            Field entry = Nms.declaredField(entityType, "portalEntrancePos"); entry.setAccessible(true);
+            entry.set(entity, position);
+            Method resume = entityType.getDeclaredMethod("portalToAsync", levelType, boolean.class, portalType, Consumer.class);
+            resume.setAccessible(true);
+            return (boolean) resume.invoke(entity, destination, false, portalType.getField("NETHER").get(null), callback);
         } catch (ReflectiveOperationException ex) { return false; }
     }
 
