@@ -104,7 +104,6 @@ def prepare_engine(java, engine, cache):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", choices=SERVERS, default="paper")
-    parser.add_argument("--scenario", choices=["native-policy", "pending-contact", "blocked-return", "teleport-lock", "source-exit", "departure-contact", "swept-contact"])
     parser.add_argument("--accept-eula", action="store_true",
                         help="accept https://www.minecraft.net/eula for disposable test servers")
     parser.add_argument("--cache", type=Path, default=MODULE / "build/integration-cache")
@@ -112,8 +111,6 @@ def main():
     parser.add_argument("--java", default=str(Path(os.environ["JAVA_HOME"]) / "bin/java")
                         if "JAVA_HOME" in os.environ else "java")
     args = parser.parse_args()
-    if args.scenario in {"native-policy", "pending-contact", "teleport-lock", "source-exit"} and args.engine != "folia":
-        parser.error("This scenario requires --engine folia")
     if not args.accept_eula:
         parser.error("Read the Minecraft EULA, then pass --accept-eula to run test servers")
     java = shutil.which(args.java)
@@ -131,7 +128,7 @@ def main():
     work = MODULE / ("build/integration-" + args.engine)
     classes = work / "fixture-classes"
     classes.mkdir(parents=True, exist_ok=True)
-    fixture = "FoliaIntegration" if args.engine == "folia" else "PortalIntegration"
+    fixture = "PortalIntegration"
     run_logged([str(javac), "-proc:none", "--release", "8", "-cp", os.pathsep.join(map(str, classpath)),
                 "-d", str(classes), str(MODULE / f"tools/{fixture}.java")],
                MODULE, work / "fixture-compile.log", timeout=180)
@@ -145,7 +142,7 @@ def main():
     shutil.copy2(jar, copied)
     with zipfile.ZipFile(stage / "plugins/PortalIntegration.jar", "w") as out:
         out.writestr("plugin.yml", "name: PortalIntegration\nversion: 1\n"
-                     f"main: dev.eyecrasher.fixture.{fixture}\ndepend: [PortalLinked]\nfolia-supported: true\n")
+                     f"main: dev.eyecrasher.fixture.{fixture}\ndepend: [PortalLinked]\n")
         for path in classes.rglob("*.class"):
             out.write(path, path.relative_to(classes))
     shutil.copy2(launcher, stage / "server.jar")
@@ -166,19 +163,15 @@ def main():
         "pause-when-empty-seconds=-1\nmax-tick-time=300000\n"
         f"sync-chunk-writes={args.sync_chunk_writes}\n")
     (stage / "spigot.yml").write_text("settings:\n  timeout-time: 300\n")
-    if args.engine == "folia":
-        (stage / "config").mkdir(exist_ok=True)
-        (stage / "config/paper-global.yml").write_text("threaded-regions:\n  threads: 4\n")
     phases = []
     print(f"{args.engine} {SERVERS[args.engine]['version']} test directory: {stage}", flush=True)
-    for phase in ([1] if args.scenario else [1, 2]):
+    for phase in [1, 2]:
         if phase == 2:
             (stage / "plugins/PortalLinked/config.yml").write_text(
                 "enabled: null\nexcluded-worlds: []\ndebug: false\n")
         log = stage / f"console-{phase}.log"
         run_logged([java, "-Xms512M", "-Xmx2G", "-XX:ActiveProcessorCount=4",
                     "-Dterminal.jline=false", "-Dterminal.ansi=false", f"-Dportal.phase={phase}",
-                    f"-Dportallinked.scenario={args.scenario or ''}",
                     "-Djava.awt.headless=true", "-jar", "server.jar"], stage, log,
                    timeout=600)
         # Event dispatch catches plugin exceptions and may let vanilla travel
@@ -196,7 +189,7 @@ def main():
         print(f"Phase {phase}: {len(outcome['checks'])} checks passed", flush=True)
     if any(hashlib.sha256(path.read_bytes()).hexdigest() != digest for path in [jar, copied]):
         raise RuntimeError("Release artifact changed during integration")
-    report = {"minecraft": MODULE.name, "server_minecraft_id": minecraft, "jar_sha256": digest, "engine": args.engine, "sync_chunk_writes": args.sync_chunk_writes == "true", "scenario": args.scenario, "server": SERVERS[args.engine], "phases": phases,
+    report = {"minecraft": MODULE.name, "server_minecraft_id": minecraft, "jar_sha256": digest, "engine": args.engine, "sync_chunk_writes": args.sync_chunk_writes == "true", "scenario": None, "server": SERVERS[args.engine], "phases": phases,
               "passed": sum(len(phase["checks"]) for phase in phases), "stage": str(stage)}
     (work / "result.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({"passed": report["passed"], "jar_sha256": digest}), flush=True)

@@ -105,6 +105,11 @@ database is required. Changing between these legacy and modern save layouts does
 not automatically migrate remembered pairs; an ordinary successful crossing
 establishes a fresh pair.
 
+The pinned Forge 1.7.10 server requires a matching Forge/FML client to complete
+its login handshake. Install Forge on that client; PortalLinked itself is still
+server-only and does not need to be installed on the client. A vanilla client or
+a protocol version switch alone does not provide the Forge/FML handshake.
+
 Forge 1.21.9 / 59.0.5 leaves a NightConfig3.7.4 watcher thread alive after
 shutdown, including on a server with no mods. The disposable Forge fixture
 unloads the loader configuration context through `ConfigTracker.forceUnload()`

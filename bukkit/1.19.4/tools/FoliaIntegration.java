@@ -175,13 +175,14 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
 
     private CompletableFuture<Void> sourceExits() {
         return sourceExit(false, false).thenCompose(v -> sourceExit(true, false))
-                .thenCompose(v -> sourceExit(true, true));
+                .thenCompose(v -> sourceExit(true, true)).thenCompose(v -> interruptedReturn());
     }
 
     private CompletableFuture<Void> sourceExit(boolean reenter, boolean creative) {
-        int base = creative ? 184032 : reenter ? 176032 : 168032, target = base / 8;
+        int base = creative ? 184032 : reenter ? 176032 : 168032, target = base / 8 - 4;
         String label = "reenter=" + reenter + " creative=" + creative;
         return frame(overworld, base, 64, 0, Axis.X, 2, 3)
+                .thenCompose(v -> frame(overworld, base - 32, 64, 0, Axis.X, 2, 3))
                 .thenCompose(v -> frame(nether, target, 64, 0, Axis.X, 2, 3))
                 .thenCompose(v -> bot("SourceExit", UUID.randomUUID(), overworld, base + .5, 64, .5))
                 .thenCompose(probe -> travel(probe, nether, true).thenCompose(v -> {
@@ -199,32 +200,53 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                         byte[] before = data(probe);
                         trigger(probe);
                         exitedTick[0] = probe.getBukkitEntity().getTicksLived();
-                        probe.moveTo(target + .5, 64, 4.5);
+                        // ServerPlayer.moveTo sends a teleport on this SDK.
+                        // Model an accepted movement without issuing a teleport.
+                        probe.setPos(target + .5, 64, 4.5);
                         return before;
                     })).thenCompose(before -> outsideTicks(probe, 24).thenCompose(done -> player(probe, () -> {
                         check(!finished.isDone(), "destination-region validation stays blocked across source exit: " + label);
                         check(probe.getBukkitEntity().getTicksLived() - exitedTick[0] >= 24 && process(probe) == null,
                                 "native progress expires after more than twenty actual source ticks: " + label);
                         if (reenter) {
-                            probe.moveTo(target + .5, 64, .5);
+                            probe.setPos(target + .5, 64, .5);
                             inside(probe, probe.blockPosition());
                             handlePortal(probe);
-                            if (!creative) check(process(probe) != null && process(probe).getPortalTime() <= 1,
-                                    "reentry starts with fresh native delay instead of stale held progress: " + label);
                         }
                         release.complete(null);
                         return null;
-                    })).thenCompose(done -> finished).thenCompose(done -> delay(probe, 4)).thenCompose(done -> player(probe, () -> {
-                        if (!creative) {
-                            check(probe.getLevel().getWorld().equals(nether) && Arrays.equals(before, data(probe)),
-                                    "released old validation cannot launch or mutate an exited journey: " + label);
-                        }
-                        return null;
-                    })).thenCompose(done -> reenter && creative ? arrived(probe, overworld, true, before, 0)
-                            : player(probe, () -> { probe.moveTo(target + .5, 64, .5); return null; })
-                                    .thenCompose(ignored -> travel(probe, overworld, true)))
+                    })).thenCompose(done -> finished).thenCompose(done -> delay(probe, 4))
+                            .thenCompose(done -> arrived(probe, overworld, true, before, 0))
                             .thenCompose(done -> this.<Void>player(probe, () -> {
-                                check(probe.getLevel().getWorld().equals(overworld), "ordinary saved return succeeds after source release: " + label);
+                                check(probe.getBukkitEntity().getWorld().equals(overworld)
+                                                && probe.getX() >= base && probe.getX() < base + 3,
+                                        "accepted native-ready return survives source movement and reaches original instead of native neighbor: " + label);
+                                return null;
+                            }))).whenComplete((done, error) -> release.complete(null));
+                }));
+    }
+
+    private CompletableFuture<Void> interruptedReturn() {
+        int base = 208032, target = base / 8;
+        return frame(overworld, base, 64, 0, Axis.X, 2, 3)
+                .thenCompose(v -> frame(nether, target, 64, 0, Axis.X, 2, 3))
+                .thenCompose(v -> bot("TeleportPending", UUID.randomUUID(), overworld, base + .5, 64, .5))
+                .thenCompose(probe -> travel(probe, nether, true).thenCompose(v -> {
+                    CompletableFuture<Void> entered = new CompletableFuture<>(), release = new CompletableFuture<>(), finished = new CompletableFuture<>();
+                    Bukkit.getRegionScheduler().execute(this, overworld, base >> 4, 0, () -> {
+                        entered.complete(null);
+                        try { release.get(8, TimeUnit.SECONDS); finished.complete(null); }
+                        catch (Exception ex) { finished.completeExceptionally(ex); }
+                    });
+                    return entered.thenCompose(done -> player(probe, () -> {
+                        probe.getBukkitEntity().setGameMode(org.bukkit.GameMode.CREATIVE);
+                        byte[] before = data(probe); trigger(probe); return before;
+                    })).thenCompose(before -> relocate(probe, new Location(nether, target + .5, 64, 4.5))
+                            .thenCompose(done -> { release.complete(null); return finished; })
+                            .thenCompose(done -> delay(probe, 8)).thenCompose(done -> this.<Void>player(probe, () -> {
+                                check(probe.getBukkitEntity().getWorld().equals(nether) && Math.abs(probe.getZ() - 4.5) < .01,
+                                        "unrelated plugin teleport cancels a loading personal return");
+                                check(Arrays.equals(before, data(probe)), "interrupted accepted return preserves the previous pair");
                                 return null;
                             }))).whenComplete((done, error) -> release.complete(null));
                 }));
@@ -900,6 +922,11 @@ public final class FoliaIntegration extends JavaPlugin implements Listener {
                         connection.channel = channel; connection.address = new InetSocketAddress("127.0.0.1", 54321);
                 player.connection = new ServerGamePacketListenerImpl(server, connection, player) {
                     @Override public void send(Packet<?> packet) {
+                        if (packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket position) {
+                            player.getBukkitEntity().getScheduler().run(FoliaIntegration.this, task -> {
+                                player.connection.handleAcceptTeleportPacket(new net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket(position.getId()));
+                            }, null);
+                        }
                         if (packet instanceof ClientboundLevelEventPacket effect && effect.getType() == 1032)
                             portalSounds.merge(player.getUUID(), 1, Integer::sum);
                     }

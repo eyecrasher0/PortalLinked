@@ -82,13 +82,14 @@ final class FoliaRoutes implements Listener {
         World preferred = rememberedWorld != null && plugin.activePair(active, from, rememberedWorld) ? rememberedWorld : defaultTarget;
         PortalRef saved = remembered != null && remembered.world().equals(preferred.getUID()) ? remembered : null;
         boolean bypass = source.equals(vanillaFallback.remove(player.getUniqueId()));
-        // A swept contact can already be outside the frame. Holding it would
-        // consume native travel, while a pending saved return requires continuity.
-        boolean returning = saved != null && !bypass && !player.isInsideVehicle() && player.getPassengers().isEmpty()
-                && Portals.intersects(source, player);
+        // Native readiness was checked above. The accepted crossing remains
+        // eligible while its destination loads, even after ordinary movement.
+        boolean returning = saved != null && !bypass && !player.isInsideVehicle() && player.getPassengers().isEmpty();
         World target = returning ? preferred : defaultTarget;
         if (!plugin.activePair(active, from, target) || !nativeAllows(player, target)) return;
-        Trip trip = new Trip(source, target.getUID(), active, player.getTicksLived(), returning, event, cooldown);
+        Integer teleportVersion = returning ? FoliaNative.teleportVersion(player) : null;
+        if (returning && teleportVersion == null) return;
+        Trip trip = new Trip(source, target.getUID(), active, player.getTicksLived(), returning, event, cooldown, teleportVersion);
         if (!plugin.withSettings(active, () -> {
             trips.put(player.getUniqueId(), trip);
             if (returning && !FoliaNative.hold(player, contact)) trips.remove(player.getUniqueId(), trip);
@@ -111,13 +112,13 @@ final class FoliaRoutes implements Listener {
             destination.setPitch(fromPosition.getPitch());
             PlayerPortalEvent portal = new PlayerPortalEvent(player, player.getLocation(), destination,
                     PlayerTeleportEvent.TeleportCause.NETHER_PORTAL, 0, false, 0);
-            Bukkit.getPluginManager().callEvent(portal);
+            dispatch(trip, portal);
             if (portal.isCancelled() || portal.getTo() == null || !current(player, trip)) {
                 finishCancelled(player, trip); return;
             }
             PlayerTeleportEvent teleport = new PlayerTeleportEvent(player, player.getLocation(), portal.getTo(),
                     PlayerTeleportEvent.TeleportCause.NETHER_PORTAL);
-            Bukkit.getPluginManager().callEvent(teleport);
+            dispatch(trip, teleport);
             if (teleport.isCancelled() || teleport.getTo() == null || !current(player, trip)) {
                 finishCancelled(player, trip); return;
             }
@@ -136,6 +137,20 @@ final class FoliaRoutes implements Listener {
             if (!FoliaNative.teleport(player, finalDestination, () -> record(player, trip)))
                 trips.remove(player.getUniqueId(), trip);
         }, () -> trips.remove(player.getUniqueId(), trip)));
+    }
+
+    private void dispatch(Trip trip, PlayerTeleportEvent event) {
+        trip.dispatchedEvent = event;
+        try { Bukkit.getPluginManager().callEvent(event); }
+        finally { trip.dispatchedEvent = null; }
+    }
+
+    /** An unrelated teleport supersedes an accepted return that is still loading. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void interrupted(PlayerTeleportEvent event) {
+        Trip trip = trips.get(event.getPlayer().getUniqueId());
+        if (trip != null && trip.returning && !trip.started && trip.dispatchedEvent != event)
+            trips.remove(event.getPlayer().getUniqueId(), trip);
     }
 
     private void fallback(Player player, Trip trip) {
@@ -202,7 +217,9 @@ final class FoliaRoutes implements Listener {
             return false;
         }
         if (trip.returning && !trip.started && (player.getPortalCooldown() > 0
-                || !Portals.intersects(trip.source, player) || readyCooldown(player, true) < 0)) {
+                || !player.getWorld().getUID().equals(trip.source.world()) || player.isDead()
+                || player.isInsideVehicle() || !player.getPassengers().isEmpty()
+                || !trip.teleportVersion.equals(FoliaNative.teleportVersion(player)))) {
             trips.remove(player.getUniqueId(), trip);
             return false;
         }
@@ -296,14 +313,17 @@ final class FoliaRoutes implements Listener {
         final PortalLinkedPlugin.Settings settings;
         final int tick;
         EntityPortalEnterEvent contact;
+        PlayerTeleportEvent dispatchedEvent;
         final int cooldown;
+        final Integer teleportVersion;
         final boolean returning;
         boolean started;
         PortalRef arrival;
-        Trip(PortalRef source, UUID target, PortalLinkedPlugin.Settings settings, int tick, boolean returning, EntityPortalEnterEvent contact, int cooldown) {
+        Trip(PortalRef source, UUID target, PortalLinkedPlugin.Settings settings, int tick, boolean returning, EntityPortalEnterEvent contact, int cooldown, Integer teleportVersion) {
             this.source = source; this.target = target; this.settings = settings; this.tick = tick; this.returning = returning;
             this.contact = contact;
             this.cooldown = cooldown;
+            this.teleportVersion = teleportVersion;
         }
     }
 }

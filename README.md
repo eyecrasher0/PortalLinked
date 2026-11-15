@@ -58,8 +58,10 @@ Backport development and the exact-version queue are tracked in
 On Folia, new trips retain the server's native asynchronous portal travel.
 Remembered returns validate the destination on its owning region and move the
 player with `teleportAsync`. They use a clear position in the original portal
-and emit cancellable player portal/teleport events. Mounted players and swept
-contacts that already ended outside the portal volume retain native Folia routing.
+and emit cancellable player portal/teleport events. The unreleased return fix keeps
+a native-ready crossing eligible while its destination loads, even if the player
+walks beyond the frame. Cancellation or an unrelated teleport invalidates that
+pending return. Mounted players retain native Folia routing.
 Player data is changed only on the owning region/entity thread, including native
 arrival and teleport completion callbacks.
 

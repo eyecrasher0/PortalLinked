@@ -17,14 +17,23 @@ final class FoliaNative {
         return player.getClass().getMethod("getHandle").invoke(player);
     }
 
-    /** Keep native travel pending without taking ownership of event cancellation. */
+    /** Native teleport sequence changes even when Folia omits Bukkit events. */
+    static Integer teleportVersion(Player player) {
+        try {
+            Object connection = Nms.field(Nms.type("net.minecraft.server.level.ServerPlayer"), "connection").get(handle(player));
+            Field version = Nms.declaredField(Nms.type("net.minecraft.server.network.ServerGamePacketListenerImpl"), "awaitingTeleport");
+            version.setAccessible(true);
+            return version.getInt(connection);
+        } catch (ReflectiveOperationException ex) { return null; }
+    }
+
+    /** Hold a crossing whose native readiness was already accepted by the caller. */
     static boolean hold(Player player, Location contact) {
         try {
             Object entity = handle(player);
             Class<?> entityType = Nms.type("net.minecraft.world.entity.Entity");
             int delay = (int) Nms.method(entity.getClass(), "getPortalWaitTime").invoke(entity);
             Field time = Nms.declaredField(entityType, "portalTime"); time.setAccessible(true);
-            if (time.getInt(entity) < delay - 1) return false;
             time.setInt(entity, delay - 1);
             return true;
         } catch (ReflectiveOperationException ex) { return false; }

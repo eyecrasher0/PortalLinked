@@ -9,6 +9,11 @@
   official SDK exists for that exact Minecraft release.
 - Preserves personal portal returns, native new routes and exit creation,
   protection events, whole-frame identities and administrator settings.
+- Fixes accepted Folia returns losing their destination when a player walks
+  through the frame while the exit region is loading. Unrelated teleports still
+  cancel the pending return.
+- Clarifies that Forge 1.7.10 requires a Forge/FML client handshake, while
+  PortalLinked itself remains server-only.
 - Targets Java 8 for 1.7.10, 1.8.9, 1.12.2 and 1.16.5; Java 16 for 1.17.x;
   later releases use their recorded Java 17, 21 or 25 runtime.
 - Stores Bukkit 1.12.2 links in one owned scoreboard tag in normal player NBT;

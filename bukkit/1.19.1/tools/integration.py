@@ -106,7 +106,7 @@ def prepare_engine(java, engine, cache):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", choices=SERVERS, default="paper")
-    parser.add_argument("--scenario", choices=["native-policy", "pending-contact", "blocked-return", "teleport-lock", "source-exit", "departure-contact", "swept-contact"])
+    parser.add_argument("--scenario", choices=["blocked-return", "departure-contact", "swept-contact"])
     parser.add_argument("--accept-eula", action="store_true",
                         help="accept https://www.minecraft.net/eula for disposable test servers")
     parser.add_argument("--cache", type=Path, default=MODULE / "build/integration-cache")
@@ -114,8 +114,6 @@ def main():
     parser.add_argument("--java", default=str(Path(os.environ["JAVA_HOME"]) / "bin/java")
                         if "JAVA_HOME" in os.environ else "java")
     args = parser.parse_args()
-    if args.scenario in {"native-policy", "pending-contact", "teleport-lock", "source-exit"} and args.engine != "folia":
-        parser.error("This scenario requires --engine folia")
     if not args.accept_eula:
         parser.error("Read the Minecraft EULA, then pass --accept-eula to run test servers")
     java = shutil.which(args.java)
@@ -155,7 +153,7 @@ def main():
     work = MODULE / ("build/integration-" + args.engine)
     classes = work / "fixture-classes"
     classes.mkdir(parents=True, exist_ok=True)
-    fixture = "FoliaIntegration" if args.engine == "folia" else "PortalIntegration"
+    fixture = "PortalIntegration"
     run_logged([str(javac), "--release", "17", "-cp", os.pathsep.join(map(str, classpath)),
                 "-d", str(classes), str(MODULE / f"tools/{fixture}.java")],
                MODULE, work / "fixture-compile.log", timeout=180)
@@ -169,7 +167,7 @@ def main():
     shutil.copy2(jar, copied)
     with zipfile.ZipFile(stage / "plugins/PortalIntegration.jar", "w") as out:
         out.writestr("plugin.yml", "name: PortalIntegration\nversion: 1\n"
-                     f"main: dev.eyecrasher.fixture.{fixture}\napi-version: '1.19'\ndepend: [PortalLinked]\nfolia-supported: true\n")
+                     f"main: dev.eyecrasher.fixture.{fixture}\napi-version: '1.19'\ndepend: [PortalLinked]\n")
         for path in classes.rglob("*.class"):
             out.write(path, path.relative_to(classes))
     original = stage / "fixture-mojang.jar"
@@ -196,9 +194,6 @@ def main():
         "pause-when-empty-seconds=-1\nmax-tick-time=300000\n"
         f"sync-chunk-writes={args.sync_chunk_writes}\n")
     (stage / "spigot.yml").write_text("settings:\n  timeout-time: 300\n")
-    if args.engine == "folia":
-        (stage / "config").mkdir(exist_ok=True)
-        (stage / "config/paper-global.yml").write_text("threaded-regions:\n  threads: 4\n")
     phases = []
     print(f"{args.engine} {SERVERS[args.engine]['version']} test directory: {stage}", flush=True)
     for phase in ([1] if args.scenario else [1, 2]):
