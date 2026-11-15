@@ -4,7 +4,6 @@ main: dev.eyecrasher.portallinked.PortalLinkedPlugin
 author: EyeCrasher
 website: https://github.com/eyecrasher0/PortalLinked
 api-version: '1.21.10'
-folia-supported: true
 description: Remembers each player's Nether portal pair while preserving vanilla travel.
 commands:
   portallinked:

@@ -137,8 +137,9 @@ separately from later `net.neoforged:neoforge` releases.
 The 1.19.4 plugin compiles against that release's Folia API, which includes the
 shared Paper API plus region scheduler methods missing from the contemporary
 Paper API. Versions without an official Folia server omit the Folia route
-adapter. The 1.20 plugin still compiles its optional adapter using the shared
-Paper 1.20.4 API; native verification always starts exact 1.20 servers.
+adapter, its native fixture and the `folia-supported` plugin flag. The 1.20
+plugin compiles against the shared Paper 1.20.4 API; native verification always
+starts exact 1.20 servers.
 
 The Bukkit 1.12.2 adapter predates the Persistent Data Container API. It stores
 one versioned `portallinked:last_crossing:` scoreboard tag in the player's native

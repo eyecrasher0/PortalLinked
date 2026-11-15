@@ -38,16 +38,12 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
     private final Map<UUID, Crossing> pending = new ConcurrentHashMap<>();
     private NamespacedKey linkKey;
     private volatile Settings settings = new Settings(false, Set.of(), false, 0);
-    private FoliaRoutes folia;
 
     @Override public void onEnable() {
         linkKey = new NamespacedKey(this, "last_crossing");
         saveDefaultConfig();
         if (!loadSettings()) getLogger().warning("Portal linking remains disabled until the configuration is fixed and reloaded.");
-        if (FoliaRoutes.isFolia()) {
-            folia = new FoliaRoutes(this);
-            getServer().getPluginManager().registerEvents(folia, this);
-        } else getServer().getPluginManager().registerEvents(this, this);
+        getServer().getPluginManager().registerEvents(this, this);
         getLogger().info("PortalLinked enabled.");
     }
 
@@ -55,7 +51,6 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         settings = new Settings(false, settings.excluded, settings.debug, settings.generation + 1);
         contacts.clear();
         pending.clear();
-        if (folia != null) folia.clear();
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -159,8 +154,7 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
                     : sender instanceof Player player ? player : null;
             if (target == null) {
                 sender.sendMessage("Specify an online player: /portallinked forget <player>.");
-            } else if (folia != null) folia.forget(sender, target);
-            else { forget(target); sender.sendMessage("Forgot portal link for " + target.getName() + "."); }
+            } else { forget(target); sender.sendMessage("Forgot portal link for " + target.getName() + "."); }
         } else {
             sender.sendMessage("Usage: /portallinked <reload|status|forget> [online-player]");
         }
@@ -186,7 +180,6 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
                 settings = new Settings((Boolean) enabledValue, nextExcluded, (Boolean) debugValue, settings.generation + 1);
                 contacts.clear();
                 pending.clear();
-                if (folia != null) folia.clear();
             }
             return true;
         } catch (IOException | InvalidConfigurationException | IllegalArgumentException ex) {
@@ -216,36 +209,17 @@ public final class PortalLinkedPlugin extends JavaPlugin implements Listener {
         return link;
     }
 
-    boolean activePair(World from, World to) {
-        return activePair(settings, from, to);
-    }
-
-    boolean activePair(Settings active, World from, World to) {
+    private boolean activePair(World from, World to) {
+        Settings active = settings;
         if (!active.enabled || from == null || to == null
                 || active.excluded.contains(from.getName()) || active.excluded.contains(to.getName())) return false;
         return (from.getEnvironment() == World.Environment.NORMAL && to.getEnvironment() == World.Environment.NETHER)
                 || (from.getEnvironment() == World.Environment.NETHER && to.getEnvironment() == World.Environment.NORMAL);
     }
 
-    Settings settingsSnapshot() { return settings; }
-
-    /** Guard trip claims and data writes against reload; no waits or foreign callbacks. */
-    synchronized boolean withSettings(Settings expected, Runnable action) {
-        if (!isEnabled() || settings != expected || !expected.enabled) return false;
-        action.run();
-        return true;
-    }
-
-    void saveLink(Player player, PortalRef source, PortalRef destination) {
-        player.getPersistentDataContainer().set(linkKey, PersistentDataType.BYTE_ARRAY,
-                LinkCodec.encode(new PortalLinked(source, destination)));
-        debug("Saved portal link for " + player.getName() + ".");
-    }
-
     void forget(Player player) {
         player.getPersistentDataContainer().remove(linkKey);
         contacts.remove(player.getUniqueId()); pending.remove(player.getUniqueId());
-        if (folia != null) folia.forget(player.getUniqueId());
     }
 
     record Settings(boolean enabled, Set<String> excluded, boolean debug, long generation) {}
