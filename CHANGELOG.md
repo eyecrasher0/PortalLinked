@@ -25,6 +25,10 @@
 - Verifies every implemented server with real native transitions, player saves
   and complete process restarts. Historical SDKs are pinned to exact versions
   and checksums. Complete mapping files and server binaries are not distributed.
+- Known limitation: one manual Forge 1.8.9 return after a server restart reached
+  the neighboring portal despite a saved personal pair, alongside a native
+  80-block movement rollback. Later manual and network-controlled repeats
+  returned correctly, but the original cause remains unestablished.
 
 ## 1.1.0 — Minecraft 26.3
 
