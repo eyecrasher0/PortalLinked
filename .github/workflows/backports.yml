@@ -12,6 +12,8 @@ jobs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Native runner argument contracts
+        run: python3 tools/test-integration-options.py
       - id: matrix
         run: echo "matrix=$(python3 tools/backports.py ci-matrix)" >> "$GITHUB_OUTPUT"
   native:

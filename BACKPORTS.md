@@ -12,7 +12,8 @@ PortalLinked. Only **26.3 / PortalLinked 1.1.0** is released at present.
 All **PortalLinked 1.2.0** backport adapters have completed local native
 verification. They remain unreleased until publication and CI verification.
 The queue records native verification separately from released builds.
-The Folia return follow-up is being revalidated against each affected exact SDK.
+The Folia return follow-up has completed local native verification against each
+affected exact server SDK, including a real shutdown and restart.
 It also produces a new **1.2.0 Bukkit JAR for 26.3**; the published 1.1.0 artifacts
 and the unchanged 26.3 mod builds keep their existing versions.
 
@@ -48,13 +49,21 @@ for an exact target. Spigot version aliases sometimes select a newer patch;
 the queue pins historical numeric revisions in those cases. The native runner
 checks the server JAR’s embedded Minecraft version before starting it.
 
-Paper publishes no 1.21.2 API, so that Spigot adapter compiles against the shared
-Bukkit API surface from Paper 1.21.3 and is tested on the exact Spigot 1.21.2
-server. Similarly, the Spigot 26.1 adapter compiles against Paper's 26.1.1 API.
-Paper 1.20.5's historical API POM references an unavailable Adventure snapshot BOM,
-so its adapter compiles against Paper 1.20.6's shared API and runs on exact 1.20.5
-servers. Spigot 1.20.3 similarly uses the shared API from Paper 1.20.4.
-These compile dependencies do not add neighboring Minecraft server targets.
+Six Bukkit adapters compile against a shared Paper API from a different patch
+release. Their native verification still uses each exact Minecraft server:
+
+| Minecraft adapter | Paper API compile dependency |
+| --- | --- |
+| 1.20 | 1.20.4 |
+| 1.20.2 | 1.20.4 |
+| 1.20.3 | 1.20.4 |
+| 1.20.5 | 1.20.6 |
+| 1.21.2 | 1.21.3 |
+| 26.1 | 26.1.1 |
+
+Paper publishes no 1.21.2 API, and Paper 1.20.5's historical API POM references
+an unavailable Adventure snapshot BOM. The shared compile dependencies do not
+add neighboring Minecraft server targets or substitute for exact native tests.
 
 Inspect the queue:
 
@@ -82,6 +91,12 @@ strict admin settings, cancellation and player-save persistence. Native checks
 must execute the matching Minecraft server and confirm save, shutdown and restart
 before a target is marked verified. Target-specific test code adapts to the old
 SDK rather than changing the runtime behavior to satisfy a fixture.
+
+The mod runner's optional `--scenario` runs one diagnostic phase and does not
+verify restart persistence. `blocked-return` and `dimension-identifiers` are
+available from 1.16.5 onward; `adjacent-arrival` is specific to 1.18.1 and
+`native-save` to 1.17. Legacy Forge 1.7.10, 1.8.9 and 1.12.2 accept no individual
+scenario. Omit `--scenario` for the full two-phase suite on every target.
 
 The backport launcher sets `sync-chunk-writes=false` only on its disposable test
 servers to avoid host filesystem contention. Player saves, actual process exit,

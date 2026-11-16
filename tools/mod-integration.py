@@ -40,13 +40,24 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--loader', choices=['fabric', 'neoforge', 'forge'], required=True)
     parser.add_argument('--minecraft', choices=SUPPORTED_MINECRAFT, default='26.3')
-    parser.add_argument('--scenario', choices=['blocked-return', 'dimension-identifiers', 'adjacent-arrival', 'native-save'])
+    parser.add_argument('--scenario', choices=['blocked-return', 'dimension-identifiers', 'adjacent-arrival', 'native-save'],
+                        help='run one diagnostic phase without restart; omit for the full two-phase restart suite')
     parser.add_argument('--accept-eula', action='store_true')
     parser.add_argument('--cache', type=Path, default=ROOT / 'build/mod-integration-cache')
     parser.add_argument('--sync-chunk-writes', choices=['true', 'false'], default='true')
     parser.add_argument('--installer-java', help='optional separate JDK for the upstream installer')
     parser.add_argument('--java', default=str(Path(os.environ['JAVA_HOME']) / 'bin/java') if 'JAVA_HOME' in os.environ else 'java')
     args = parser.parse_args()
+    loader = args.loader
+    minecraft = args.minecraft
+    scenarios = set() if minecraft in ('1.7.10', '1.8.9', '1.12.2') else {'blocked-return', 'dimension-identifiers'}
+    if minecraft == '1.18.1':
+        scenarios.add('adjacent-arrival')
+    if minecraft == '1.17':
+        scenarios.add('native-save')
+    if args.scenario and args.scenario not in scenarios:
+        parser.error(f'--scenario {args.scenario} is not implemented for {loader} {minecraft}; '
+                     'omit --scenario to run the full two-phase restart suite')
     if not args.accept_eula:
         parser.error('Read https://www.minecraft.net/eula and pass --accept-eula for disposable test servers')
     java = shutil.which(args.java)
@@ -57,10 +68,6 @@ def main():
     if installer_java is None:
         parser.error('Installer Java executable was not found')
     installer_java = str(Path(installer_java).resolve())
-    loader = args.loader
-    minecraft = args.minecraft
-    if args.scenario == 'native-save' and minecraft != '1.17':
-        parser.error('--scenario native-save is specific to the Minecraft 1.17 fixture')
     definitions = ROOT / 'tools/mod-servers.json' if minecraft == '26.3' else SERVER_DEFINITIONS / (minecraft + '.json')
     servers = json.loads(definitions.read_text())
     if loader not in servers:
