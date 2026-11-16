@@ -39,6 +39,20 @@ class IntegrationOptionsTest(unittest.TestCase):
                                     or 'unrecognized arguments: --scenario' in result.stderr,
                                     result.stderr)
 
+    def test_older_folia_runners_reject_unimplemented_pending_contact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cache = Path(directory) / 'cache'
+            missing_java = Path(directory) / 'java-must-not-start'
+            for version in ['1.19.4', '1.20.1', '1.20.2', '1.20.4', '1.20.6']:
+                with self.subTest(minecraft=version):
+                    result = self.invoke(
+                        ROOT / 'bukkit' / version / 'tools/integration.py',
+                        '--engine', 'folia', '--scenario', 'pending-contact',
+                        '--accept-eula', '--java', str(missing_java), '--cache', str(cache))
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn('invalid choice:', result.stderr)
+                    self.assertFalse(cache.exists())
+
     def test_supported_scenarios_reach_the_eula_boundary(self):
         for sdk in sorted((ROOT / 'bukkit').glob('*/tools/servers.json')):
             if sdk.parent.parent.name == '1.12.2':
@@ -49,6 +63,8 @@ class IntegrationOptionsTest(unittest.TestCase):
             scenarios = ['blocked-return', 'departure-contact', 'swept-contact']
             if engine == 'folia':
                 scenarios += ['teleport-lock', 'source-exit']
+                if sdk.parent.parent.name not in ['1.19.4', '1.20.1', '1.20.2', '1.20.4', '1.20.6']:
+                    scenarios += ['pending-contact']
             for scenario in scenarios:
                 with self.subTest(minecraft=sdk.parent.parent.name, scenario=scenario):
                     result = self.invoke(runner, '--engine', engine, '--scenario', scenario)

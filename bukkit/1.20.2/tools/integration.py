@@ -106,7 +106,7 @@ def prepare_engine(java, engine, cache):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", choices=SERVERS, default="paper")
-    parser.add_argument("--scenario", choices=["native-policy", "pending-contact", "blocked-return", "teleport-lock", "source-exit", "departure-contact", "swept-contact"])
+    parser.add_argument("--scenario", choices=["native-policy", "blocked-return", "teleport-lock", "source-exit", "departure-contact", "swept-contact"])
     parser.add_argument("--accept-eula", action="store_true",
                         help="accept https://www.minecraft.net/eula for disposable test servers")
     parser.add_argument("--cache", type=Path, default=MODULE / "build/integration-cache")
@@ -114,7 +114,7 @@ def main():
     parser.add_argument("--java", default=str(Path(os.environ["JAVA_HOME"]) / "bin/java")
                         if "JAVA_HOME" in os.environ else "java")
     args = parser.parse_args()
-    if args.scenario in {"native-policy", "pending-contact", "teleport-lock", "source-exit"} and args.engine != "folia":
+    if args.scenario in {"native-policy", "teleport-lock", "source-exit"} and args.engine != "folia":
         parser.error("This scenario requires --engine folia")
     if not args.accept_eula:
         parser.error("Read the Minecraft EULA, then pass --accept-eula to run test servers")
