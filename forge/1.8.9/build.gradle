@@ -1,0 +1,55 @@
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net/' }
+        mavenCentral()
+    }
+    dependencies { classpath 'net.minecraftforge.gradle:ForgeGradle:2.1-20211118.174922-42' }
+}
+apply plugin: 'net.minecraftforge.gradle.forge'
+
+group = 'dev.eyecrasher.portallinked'
+version = '1.2.0+1.8.9'
+archivesBaseName = 'portallinked-forge'
+sourceCompatibility = targetCompatibility = '1.8'
+minecraft {
+    version = '1.8.9-11.15.1.2318-1.8.9'
+    mappings = 'stable_20'
+    runDir = 'run'
+}
+repositories { mavenCentral() }
+tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }
+processResources {
+    inputs.property 'version', project.version
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand version: project.version
+    }
+    from(sourceSets.main.resources.srcDirs) { exclude 'mcmod.info' }
+    from('../../branding/icon.png')
+}
+jar {
+    manifest {
+        attributes 'FMLCorePlugin': 'dev.eyecrasher.portallinked.core.PortalLinkedCore',
+                'FMLCorePluginContainsFMLMod': 'true'
+    }
+}
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+tasks.withType(AbstractArchiveTask) {
+    from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+}
+assemble.dependsOn sourcesJar
+
+sourceSets {
+    integration { compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath }
+}
+task integrationFixture(type: Jar) {
+    dependsOn classes, integrationClasses
+    baseName = 'portallinked-integration-forge'
+    version = '1'
+    from sourceSets.integration.output
+}
+reobf { integrationFixture { mappingType = 'SEARGE' } }
+build.dependsOn 'reobfIntegrationFixture'

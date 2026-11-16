@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.eyecrasher.portallinked.mixin",
+  "compatibilityLevel": "JAVA_16",
+  "server": [
+    "DimensionTravelMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

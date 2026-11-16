@@ -32,7 +32,7 @@ jobs:
         with:
           name: portallinked-bukkit-${{ matrix.engine }}-26.3
           path: |
-            bukkit/26.3/build/libs/portallinked-bukkit-1.1.0+26.3.jar
+            bukkit/26.3/build/libs/portallinked-bukkit-1.2.0+26.3.jar
             bukkit/26.3/build/integration-${{ matrix.engine }}/result.json
             bukkit/26.3/build/integration-${{ matrix.engine }}/run-*/console-*.log
   mods:

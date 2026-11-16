@@ -1,0 +1,28 @@
+{
+  "fabric": {
+    "minecraft": "1.21.3",
+    "version": "0.20.1",
+    "kind": "fabric",
+    "url": "https://meta.fabricmc.net/v2/versions/loader/1.21.3/0.20.1/1.1.2/server/jar",
+    "sha256": "6387f79ab9aa19b330cd1500b40ec78fac4c9ebbf6f7be662fad4a17b43dd361",
+    "mod_version": "1.2.0"
+  },
+  "neoforge": {
+    "minecraft": "1.21.3",
+    "version": "21.3.100",
+    "kind": "installer",
+    "url": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.3.100/neoforge-21.3.100-installer.jar",
+    "sha256": "8e6cde696f86e20d6d5b95d95d67baf7fbfc6370f1afc82c2323137f5a255dc8",
+    "mod_version": "1.2.0",
+    "args": "libraries/net/neoforged/neoforge/21.3.100/unix_args.txt"
+  },
+  "forge": {
+    "minecraft": "1.21.3",
+    "version": "1.21.3-53.1.16",
+    "kind": "installer",
+    "url": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.21.3-53.1.16/forge-1.21.3-53.1.16-installer.jar",
+    "sha256": "bacc5912ead42894a2e3edc67268c78f3860b1808df6456ce78e55a4667c0b1c",
+    "mod_version": "1.2.0",
+    "args": "libraries/net/minecraftforge/forge/1.21.3-53.1.16/unix_args.txt"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "fabric": {
+    "minecraft": "1.20",
+    "version": "0.20.1",
+    "kind": "fabric",
+    "url": "https://meta.fabricmc.net/v2/versions/loader/1.20/0.20.1/1.1.2/server/jar",
+    "sha256": "0fcf48b51e241a72275ab3a0ba585501872e1c4e5aa994c5496565ce88e0d700",
+    "mod_version": "1.2.0"
+  },
+  "forge": {
+    "minecraft": "1.20",
+    "version": "1.20-46.0.14",
+    "kind": "installer",
+    "url": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.20-46.0.14/forge-1.20-46.0.14-installer.jar",
+    "sha256": "9357a3ebdc113e39a535d47c5300dbcca943261a12ddda4861949e1e88d785d6",
+    "mod_version": "1.2.0",
+    "args": "libraries/net/minecraftforge/forge/1.20-46.0.14/unix_args.txt"
+  }
+}

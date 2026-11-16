@@ -31,7 +31,6 @@ import org.bukkit.util.BoundingBox;
 final class FoliaRoutes implements Listener {
     private final PortalLinkedPlugin plugin;
     private final Map<UUID, Trip> trips = new ConcurrentHashMap<>();
-    private final Map<UUID, PortalRef> vanillaFallback = new ConcurrentHashMap<>();
 
     FoliaRoutes(PortalLinkedPlugin plugin) { this.plugin = plugin; }
 
@@ -67,7 +66,7 @@ final class FoliaRoutes implements Listener {
             trips.remove(player.getUniqueId(), ongoing);
         }
         if (player.getPortalCooldown() > 0) return;
-        int cooldown = readyCooldown(player, false);
+        int cooldown = readyCooldown(player);
         if (cooldown < 0) return;
         World from = player.getWorld();
         World defaultTarget = Bukkit.getWorlds().stream().filter(world -> world.getEnvironment()
@@ -81,14 +80,14 @@ final class FoliaRoutes implements Listener {
         World rememberedWorld = remembered == null ? null : Bukkit.getWorld(remembered.world());
         World preferred = rememberedWorld != null && plugin.activePair(active, from, rememberedWorld) ? rememberedWorld : defaultTarget;
         PortalRef saved = remembered != null && remembered.world().equals(preferred.getUID()) ? remembered : null;
-        boolean bypass = source.equals(vanillaFallback.remove(player.getUniqueId()));
-        // A swept contact can already be outside the frame. Holding it would
-        // consume native travel, while a pending saved return requires continuity.
-        boolean returning = saved != null && !bypass && !player.isInsideVehicle() && player.getPassengers().isEmpty()
-                && Portals.intersects(source, player);
+        // Native readiness was checked above. The accepted crossing remains
+        // eligible while its destination loads, even after ordinary movement.
+        boolean returning = saved != null && !player.isInsideVehicle() && player.getPassengers().isEmpty();
         World target = returning ? preferred : defaultTarget;
         if (!plugin.activePair(active, from, target) || !nativeAllows(player, target)) return;
-        Trip trip = new Trip(source, target.getUID(), active, player.getTicksLived(), returning, event, cooldown);
+        Integer teleportVersion = returning ? FoliaNative.teleportVersion(player) : null;
+        if (returning && teleportVersion == null) return;
+        Trip trip = new Trip(source, target.getUID(), defaultTarget.getUID(), contact, active, player.getTicksLived(), returning, event, cooldown, teleportVersion);
         if (!plugin.withSettings(active, () -> {
             trips.put(player.getUniqueId(), trip);
             if (returning && !FoliaNative.hold(player, contact)) trips.remove(player.getUniqueId(), trip);
@@ -99,7 +98,7 @@ final class FoliaRoutes implements Listener {
         Location fromPosition = player.getLocation();
         double width = player.getWidth(), height = player.getHeight();
         loadPortal(saved, target, width, height).whenComplete((usable, error) -> player.getScheduler().run(plugin, task -> {
-            if (!current(player, trip)) return;
+            if (!current(player, trip) || trip.started) return;
             if (error != null || !Boolean.TRUE.equals(usable) || player.getWidth() != width || player.getHeight() != height) {
                 fallback(player, trip);
                 return;
@@ -111,13 +110,13 @@ final class FoliaRoutes implements Listener {
             destination.setPitch(fromPosition.getPitch());
             PlayerPortalEvent portal = new PlayerPortalEvent(player, player.getLocation(), destination,
                     PlayerTeleportEvent.TeleportCause.NETHER_PORTAL, 0, false, 0);
-            Bukkit.getPluginManager().callEvent(portal);
+            dispatch(trip, portal);
             if (portal.isCancelled() || portal.getTo() == null || !current(player, trip)) {
                 finishCancelled(player, trip); return;
             }
             PlayerTeleportEvent teleport = new PlayerTeleportEvent(player, player.getLocation(), portal.getTo(),
                     PlayerTeleportEvent.TeleportCause.NETHER_PORTAL);
-            Bukkit.getPluginManager().callEvent(teleport);
+            dispatch(trip, teleport);
             if (teleport.isCancelled() || teleport.getTo() == null || !current(player, trip)) {
                 finishCancelled(player, trip); return;
             }
@@ -138,13 +137,35 @@ final class FoliaRoutes implements Listener {
         }, () -> trips.remove(player.getUniqueId(), trip)));
     }
 
+    private void dispatch(Trip trip, PlayerTeleportEvent event) {
+        trip.dispatchedEvent = event;
+        try { Bukkit.getPluginManager().callEvent(event); }
+        finally { trip.dispatchedEvent = null; }
+    }
+
+    /** An unrelated teleport supersedes an accepted return that is still loading. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void interrupted(PlayerTeleportEvent event) {
+        Trip trip = trips.get(event.getPlayer().getUniqueId());
+        if (trip != null && trip.returning && !trip.started && trip.dispatchedEvent != event)
+            trips.remove(event.getPlayer().getUniqueId(), trip);
+    }
+
     private void fallback(Player player, Trip trip) {
-        plugin.withSettings(trip.settings, () -> {
-            if (!current(player, trip)) return;
-            trips.remove(player.getUniqueId(), trip);
-            vanillaFallback.put(player.getUniqueId(), trip.source);
-        });
+        if (trip.started) return;
+        World target = Bukkit.getWorld(trip.nativeTarget);
+        if (!plugin.withSettings(trip.settings, () -> {
+            if (!current(player, trip) || trip.started) return;
+            if (!plugin.activePair(trip.settings, player.getWorld(), target) || !nativeAllows(player, target)) {
+                trips.remove(player.getUniqueId(), trip);
+                return;
+            }
+            trip.target = target.getUID();
+            trip.started = true;
+        }) || !trip.started) return;
         plugin.debug("Saved return unavailable for " + player.getName() + "; using vanilla lookup.");
+        if (!FoliaNative.resume(player, trip.entry, target, () -> record(player, trip)))
+            trips.remove(player.getUniqueId(), trip);
     }
 
     private void finishCancelled(Player player, Trip trip) {
@@ -171,6 +192,7 @@ final class FoliaRoutes implements Listener {
                 // Arrival is captured by EntityAddToWorldEvent, never by a late feet sample.
                 if (trip.arrival == null) trips.remove(player.getUniqueId(), trip);
             } else if (attempts < 200 && player.getTicksLived() - trip.tick <= 200) watch(player, trip, attempts + 1);
+            else if (trip.returning) fallback(player, trip);
             else trips.remove(player.getUniqueId(), trip);
         }, () -> { if (!trip.started) trips.remove(player.getUniqueId(), trip); }, 1);
     }
@@ -202,7 +224,9 @@ final class FoliaRoutes implements Listener {
             return false;
         }
         if (trip.returning && !trip.started && (player.getPortalCooldown() > 0
-                || !Portals.intersects(trip.source, player) || readyCooldown(player, true) < 0)) {
+                || !player.getWorld().getUID().equals(trip.source.world()) || player.isDead()
+                || player.isInsideVehicle() || !player.getPassengers().isEmpty()
+                || !trip.teleportVersion.equals(FoliaNative.teleportVersion(player)))) {
             trips.remove(player.getUniqueId(), trip);
             return false;
         }
@@ -244,7 +268,7 @@ final class FoliaRoutes implements Listener {
     }
 
     /** Read the native progress and delay instead of inventing a second portal timer. */
-    private int readyCooldown(Player player, boolean held) {
+    private int readyCooldown(Player player) {
         try {
             Object handle = player.getClass().getMethod("getHandle").invoke(player);
             Class<?> entityClass = Class.forName("net.minecraft.world.entity.Entity");
@@ -257,8 +281,7 @@ final class FoliaRoutes implements Listener {
             int elapsed = process == null ? 0 : (int) process.getClass().getMethod("getPortalTime").invoke(process);
             int delay = (int) block.getClass().getMethod("getPortalTransitionTime",
                     Class.forName("net.minecraft.server.level.ServerLevel"), entityClass).invoke(block, level, handle);
-            if (held && delay != 0 && process == null) return -1;
-            return elapsed >= delay - (held ? 1 : 0)
+            return elapsed >= delay
                     ? (int) handle.getClass().getMethod("getDimensionChangingDelay").invoke(handle) : -1;
         } catch (ReflectiveOperationException ex) { return -1; }
     }
@@ -288,23 +311,30 @@ final class FoliaRoutes implements Listener {
     }
 
     @EventHandler public void quit(PlayerQuitEvent event) { forget(event.getPlayer().getUniqueId()); }
-    void forget(UUID id) { trips.remove(id); vanillaFallback.remove(id); }
-    void clear() { trips.clear(); vanillaFallback.clear(); }
+    void forget(UUID id) { trips.remove(id); }
+    void clear() { trips.clear(); }
 
     private static final class Trip {
         final PortalRef source;
         UUID target;
+        final UUID nativeTarget;
+        final Location entry;
         final PortalLinkedPlugin.Settings settings;
         final int tick;
         EntityPortalEnterEvent contact;
+        PlayerTeleportEvent dispatchedEvent;
         final int cooldown;
+        final Integer teleportVersion;
         final boolean returning;
         boolean started;
         PortalRef arrival;
-        Trip(PortalRef source, UUID target, PortalLinkedPlugin.Settings settings, int tick, boolean returning, EntityPortalEnterEvent contact, int cooldown) {
+        Trip(PortalRef source, UUID target, UUID nativeTarget, Location entry, PortalLinkedPlugin.Settings settings, int tick, boolean returning, EntityPortalEnterEvent contact, int cooldown, Integer teleportVersion) {
             this.source = source; this.target = target; this.settings = settings; this.tick = tick; this.returning = returning;
+            this.nativeTarget = nativeTarget;
+            this.entry = entry.clone();
             this.contact = contact;
             this.cooldown = cooldown;
+            this.teleportVersion = teleportVersion;
         }
     }
 }

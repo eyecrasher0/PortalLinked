@@ -102,6 +102,7 @@ def main():
     parser.add_argument("--accept-eula", action="store_true",
                         help="accept https://www.minecraft.net/eula for disposable test servers")
     parser.add_argument("--cache", type=Path, default=MODULE / "build/integration-cache")
+    parser.add_argument("--sync-chunk-writes", choices=["true", "false"], default="true")
     parser.add_argument("--java", default=str(Path(os.environ["JAVA_HOME"]) / "bin/java")
                         if "JAVA_HOME" in os.environ else "java")
     args = parser.parse_args()
@@ -124,7 +125,7 @@ def main():
     run_logged([str(javac), "--release", "25", "-cp", os.pathsep.join(map(str, classpath)),
                 "-d", str(classes), str(MODULE / f"tools/{fixture}.java")],
                MODULE, work / "fixture-compile.log", timeout=90)
-    jar = MODULE / "build/libs/portallinked-bukkit-1.1.0+26.3.jar"
+    jar = MODULE / "build/libs/portallinked-bukkit-1.2.0+26.3.jar"
     if not jar.is_file():
         raise RuntimeError("Build first: ./gradlew build")
     digest = hashlib.sha256(jar.read_bytes()).hexdigest()
@@ -152,7 +153,8 @@ def main():
         f"server-ip=127.0.0.1\nserver-port={port}\nonline-mode=false\nenforce-secure-profile=false\n"
         f"level-type=minecraft:flat\ngenerator-settings={generator}\nlevel-seed=123456789\n"
         "generate-structures=false\nview-distance=2\nsimulation-distance=2\n"
-        "pause-when-empty-seconds=-1\nmax-tick-time=300000\n")
+        "pause-when-empty-seconds=-1\nmax-tick-time=300000\n"
+        f"sync-chunk-writes={args.sync_chunk_writes}\n")
     (stage / "spigot.yml").write_text("settings:\n  timeout-time: 300\n")
     if args.engine == "folia":
         (stage / "config").mkdir(exist_ok=True)
@@ -168,7 +170,7 @@ def main():
                     "-Dterminal.jline=false", "-Dterminal.ansi=false", f"-Dportal.phase={phase}",
                     f"-Dportallinked.scenario={args.scenario or ''}",
                     "-jar", "server.jar", "--nogui"], stage, log,
-                   timeout=600 if args.engine == "spigot" else 300)
+                   timeout=600 if args.engine in {"spigot", "folia"} else 300)
         # Event dispatch catches plugin exceptions and may let vanilla travel
         # continue, so a successful fixture result alone must not hide them.
         if any("Could not pass event" in line and ("to PortalLinked " in line or "to PortalIntegration " in line)
@@ -184,7 +186,7 @@ def main():
         print(f"Phase {phase}: {len(outcome['checks'])} checks passed", flush=True)
     if any(hashlib.sha256(path.read_bytes()).hexdigest() != digest for path in [jar, copied]):
         raise RuntimeError("Release artifact changed during integration")
-    report = {"jar_sha256": digest, "engine": args.engine, "scenario": args.scenario, "server": SERVERS[args.engine], "phases": phases,
+    report = {"jar_sha256": digest, "engine": args.engine, "sync_chunk_writes": args.sync_chunk_writes == "true", "scenario": args.scenario, "server": SERVERS[args.engine], "phases": phases,
               "passed": sum(len(phase["checks"]) for phase in phases), "stage": str(stage)}
     (work / "result.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps({"passed": report["passed"], "jar_sha256": digest}), flush=True)

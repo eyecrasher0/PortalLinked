@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.eyecrasher.portallinked.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "server": ["CommandsMixin", "MinecraftServerMixin", "NetherPortalAccess", "NetherPortalMixin", "ServerPlayerMixin"],
+  "injectors": {"defaultRequire": 1}
+}

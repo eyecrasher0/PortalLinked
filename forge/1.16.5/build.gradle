@@ -1,0 +1,141 @@
+buildscript {
+    repositories { maven { url = 'https://maven.neoforged.net/releases' }; mavenCentral() }
+    dependencies { classpath 'org.spongepowered:mixingradle:0.7.38' }
+}
+
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle' version '6.0.54'
+}
+
+apply plugin: 'org.spongepowered.mixin'
+
+group = 'dev.eyecrasher.portallinked'
+version = '1.2.0+1.16.5'
+base { archivesName = 'portallinked-forge' }
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(8)
+    withSourcesJar()
+}
+minecraft {
+    mappings channel: 'official', version: '1.16.5'
+    runs { server { args '--nogui' } }
+}
+repositories {
+    maven { url = 'https://repo.spongepowered.org/maven' }
+    mavenCentral()
+}
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.16.5-36.2.42'
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+sourceSets.main {
+    java.srcDir '../../mod-common/1.16.5/src/main/java'
+    resources.srcDir '../../mod-common/1.16.5/src/main/resources'
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    sourceCompatibility = "1.8"
+    targetCompatibility = "1.8"
+}
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    filesMatching('META-INF/mods.toml') { expand version: project.version }
+    filesMatching('portallinked.mixins.json') { filter { line -> line.replace('JAVA_21', 'JAVA_8') } }
+    from('../../branding/icon.png')
+}
+jar { manifest { attributes 'MixinConfigs': 'portallinked.mixins.json,portallinked.travel.mixins.json' } }
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+}
+
+ext.portallinkedFixtureCompatibility = 'JAVA_8'
+ext.portallinkedFixtureRefmap = 'portallinked.integration.refmap.json'
+apply from: '../../gradle/mod-integration.gradle'
+
+dependencies { integrationAnnotationProcessor 'org.spongepowered:mixin:0.8.5:processor' }
+mixin {
+    add sourceSets.main, 'portallinked.refmap.json'
+    add sourceSets.integration, 'portallinked.integration.refmap.json'
+}
+reobf { integrationFixture {} }
+tasks.named('jar') { finalizedBy 'reobfJar' }
+tasks.named('integrationFixture') { finalizedBy 'reobfIntegrationFixture' }
+tasks.named('build') { dependsOn 'reobfIntegrationFixture' }
+
+tasks.named('sourcesJar') { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }
+
+// Forge 1.16 retains MCP class packages while exposing official member names.
+// Translate only the class names referenced by our own shared Java sources.
+def forgeClasses = [
+    'net.minecraft.BlockUtil': 'net.minecraft.util.TeleportationRepositioner',
+    'net.minecraft.BlockUtil$FoundRectangle': 'net.minecraft.util.TeleportationRepositioner$Result',
+    'net.minecraft.commands.CommandSource': 'net.minecraft.command.ICommandSource',
+    'net.minecraft.commands.CommandSourceStack': 'net.minecraft.command.CommandSource',
+    'net.minecraft.commands.Commands': 'net.minecraft.command.Commands',
+    'net.minecraft.commands.arguments.EntityArgument': 'net.minecraft.command.arguments.EntityArgument',
+    'net.minecraft.core.BlockPos': 'net.minecraft.util.math.BlockPos',
+    'net.minecraft.core.Direction': 'net.minecraft.util.Direction',
+    'net.minecraft.core.Direction$Axis': 'net.minecraft.util.Direction$Axis',
+    'net.minecraft.nbt.CompoundTag': 'net.minecraft.nbt.CompoundNBT',
+    'net.minecraft.nbt.NbtIo': 'net.minecraft.nbt.CompressedStreamTools',
+    'net.minecraft.nbt.Tag': 'net.minecraft.nbt.INBT',
+    'net.minecraft.network.Connection': 'net.minecraft.network.NetworkManager',
+    'net.minecraft.network.ConnectionProtocol': 'net.minecraft.network.ProtocolType',
+    'net.minecraft.network.chat.Component': 'net.minecraft.util.text.ITextComponent',
+    'net.minecraft.network.chat.TextComponent': 'net.minecraft.util.text.StringTextComponent',
+    'net.minecraft.network.protocol.Packet': 'net.minecraft.network.IPacket',
+    'net.minecraft.network.protocol.PacketFlow': 'net.minecraft.network.PacketDirection',
+    'net.minecraft.resources.ResourceLocation': 'net.minecraft.util.ResourceLocation',
+    'net.minecraft.server.level.ServerLevel': 'net.minecraft.world.server.ServerWorld',
+    'net.minecraft.server.level.ServerPlayer': 'net.minecraft.entity.player.ServerPlayerEntity',
+    'net.minecraft.server.level.ServerPlayerGameMode': 'net.minecraft.server.management.PlayerInteractionManager',
+    'net.minecraft.server.network.ServerGamePacketListenerImpl': 'net.minecraft.network.play.ServerPlayNetHandler',
+    'net.minecraft.server.players.PlayerList': 'net.minecraft.server.management.PlayerList',
+    'net.minecraft.util.Mth': 'net.minecraft.util.math.MathHelper',
+    'net.minecraft.world.entity.Entity': 'net.minecraft.entity.Entity',
+    'net.minecraft.world.entity.EntityDimensions': 'net.minecraft.entity.EntitySize',
+    'net.minecraft.world.entity.EntityType': 'net.minecraft.entity.EntityType',
+    'net.minecraft.world.entity.Pose': 'net.minecraft.entity.Pose',
+    'net.minecraft.world.entity.animal.Pig': 'net.minecraft.entity.passive.PigEntity',
+    'net.minecraft.world.entity.item.ItemEntity': 'net.minecraft.entity.item.ItemEntity',
+    'net.minecraft.world.item.ItemStack': 'net.minecraft.item.ItemStack',
+    'net.minecraft.world.item.Items': 'net.minecraft.item.Items',
+    'net.minecraft.world.level.Level': 'net.minecraft.world.World',
+    'net.minecraft.world.level.block.Blocks': 'net.minecraft.block.Blocks',
+    'net.minecraft.world.level.block.EndPortalBlock': 'net.minecraft.block.EndPortalBlock',
+    'net.minecraft.world.level.block.NetherPortalBlock': 'net.minecraft.block.NetherPortalBlock',
+    'net.minecraft.world.level.block.state.BlockState': 'net.minecraft.block.BlockState',
+    'net.minecraft.world.level.portal.PortalInfo': 'net.minecraft.block.PortalInfo',
+    'net.minecraft.world.level.portal.PortalShape': 'net.minecraft.block.PortalSize',
+    'net.minecraft.world.phys.AABB': 'net.minecraft.util.math.AxisAlignedBB',
+    'net.minecraft.world.phys.Vec3': 'net.minecraft.util.math.vector.Vector3d'
+]
+def forgeSourceNames = [:]
+forgeClasses.each { before, after ->
+    forgeSourceNames[before.replace('$', '.')] = after.replace('$', '.')
+    forgeSourceNames[before.replace('.', '/')] = after.replace('.', '/')
+    forgeSourceNames[before.substring(Math.max(before.lastIndexOf('.'), before.lastIndexOf('$')) + 1)] = after.substring(Math.max(after.lastIndexOf('.'), after.lastIndexOf('$')) + 1)
+}
+def forgeSourcePattern = java.util.regex.Pattern.compile('(?:(?<![A-Za-z0-9_$])|(?<=L))(?:' +
+        forgeSourceNames.keySet().sort { -it.length() }.collect { java.util.regex.Pattern.quote(it) }.join('|') +
+        ')(?![A-Za-z0-9_$])')
+def adaptedSources = layout.buildDirectory.dir('generated/forge-sources')
+tasks.register('forgeSources', Sync) {
+    inputs.property 'classNames', forgeClasses
+    into adaptedSources
+    from('../../mod-common/1.16.5/src/main/java') { into 'main' }
+    from('src/main/java') { into 'main' }
+    from('../../mod-common/1.16.5/src/integration/java') { into 'integration' }
+    from('src/integration/java') { into 'integration' }
+    filter { line -> forgeSourcePattern.matcher(line).replaceAll { match ->
+        java.util.regex.Matcher.quoteReplacement(forgeSourceNames[match.group()])
+    } }
+}
+sourceSets.main.java.setSrcDirs([adaptedSources.map { it.dir('main') }])
+sourceSets.integration.java.setSrcDirs([adaptedSources.map { it.dir('integration') }])
+tasks.withType(JavaCompile).configureEach { dependsOn 'forgeSources' }
+tasks.named('sourcesJar') { dependsOn 'forgeSources' }

@@ -1,0 +1,10 @@
+[{
+  "modid": "portallinked",
+  "name": "PortalLinked",
+  "description": "Personal Nether return routes while preserving normal portal travel.",
+  "version": "$version",
+  "mcversion": "1.7.10",
+  "url": "https://github.com/eyecrasher0/PortalLinked",
+  "authorList": ["EyeCrasher"],
+  "logoFile": "icon.png"
+}]

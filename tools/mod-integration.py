@@ -15,7 +15,8 @@ import tempfile
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-SERVERS = json.loads((ROOT / 'tools/mod-servers.json').read_text())
+SERVER_DEFINITIONS = ROOT / 'tools/mod-servers'
+SUPPORTED_MINECRAFT = ['26.3', *sorted(path.stem for path in SERVER_DEFINITIONS.glob('*.json'))]
 
 
 def run_logged(command, cwd, log, timeout=360):
@@ -37,21 +38,46 @@ def run_logged(command, cwd, log, timeout=360):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--loader', choices=SERVERS, required=True)
-    parser.add_argument('--scenario', choices=['blocked-return', 'dimension-identifiers'])
+    parser.add_argument('--loader', choices=['fabric', 'neoforge', 'forge'], required=True)
+    parser.add_argument('--minecraft', choices=SUPPORTED_MINECRAFT, default='26.3')
+    parser.add_argument('--scenario', choices=['blocked-return', 'dimension-identifiers', 'adjacent-arrival', 'native-save'],
+                        help='run one diagnostic phase without restart; omit for the full two-phase restart suite')
     parser.add_argument('--accept-eula', action='store_true')
     parser.add_argument('--cache', type=Path, default=ROOT / 'build/mod-integration-cache')
+    parser.add_argument('--sync-chunk-writes', choices=['true', 'false'], default='true')
+    parser.add_argument('--installer-java', help='optional separate JDK for the upstream installer')
     parser.add_argument('--java', default=str(Path(os.environ['JAVA_HOME']) / 'bin/java') if 'JAVA_HOME' in os.environ else 'java')
     args = parser.parse_args()
+    loader = args.loader
+    minecraft = args.minecraft
+    scenarios = set() if minecraft in ('1.7.10', '1.8.9', '1.12.2') else {'blocked-return', 'dimension-identifiers'}
+    if minecraft == '1.18.1':
+        scenarios.add('adjacent-arrival')
+    if minecraft == '1.17':
+        scenarios.add('native-save')
+    if args.scenario and args.scenario not in scenarios:
+        parser.error(f'--scenario {args.scenario} is not implemented for {loader} {minecraft}; '
+                     'omit --scenario to run the full two-phase restart suite')
     if not args.accept_eula:
         parser.error('Read https://www.minecraft.net/eula and pass --accept-eula for disposable test servers')
     java = shutil.which(args.java)
     if java is None:
-        raise RuntimeError('Java 25 is required')
-    loader = args.loader
-    definition = SERVERS[loader]
-    module = ROOT / loader / '26.3'
-    jar = module / f'build/libs/portallinked-{loader}-1.1.0+26.3.jar'
+        raise RuntimeError('Java executable was not found')
+    java = str(Path(java).resolve())
+    installer_java = shutil.which(args.installer_java) if args.installer_java else java
+    if installer_java is None:
+        parser.error('Installer Java executable was not found')
+    installer_java = str(Path(installer_java).resolve())
+    definitions = ROOT / 'tools/mod-servers.json' if minecraft == '26.3' else SERVER_DEFINITIONS / (minecraft + '.json')
+    servers = json.loads(definitions.read_text())
+    if loader not in servers:
+        parser.error(f'{loader} has no pinned native server for Minecraft {minecraft}')
+    definition = servers[loader]
+    if definition['minecraft'] != minecraft:
+        raise RuntimeError('Server definition targets a different Minecraft version')
+    module = ROOT / loader / minecraft
+    mod_version = definition.get('mod_version', '1.1.0')
+    jar = module / f'build/libs/portallinked-{loader}-{mod_version}+{minecraft}.jar'
     fixture = module / f'build/libs/portallinked-integration-{loader}-1.jar'
     if not jar.is_file() or not fixture.is_file():
         raise RuntimeError(f'First run ./gradlew build integrationFixture in {module}')
@@ -65,28 +91,43 @@ def main():
         if hashlib.sha256(payload).hexdigest() != definition['sha256']:
             raise RuntimeError('Loader SDK checksum mismatch')
         launcher.write_bytes(payload)
-    if definition['kind'] == 'installer' and not (cache / definition['args']).is_file():
-        run_logged([java, '-jar', str(launcher), '--installServer', str(cache)], cache, cache / 'installer.log')
+    installed = definition.get('server_jar') or definition.get('args')
+    if definition['kind'] in ('installer', 'legacy-forge') and not (cache / installed).is_file():
+        run_logged([installer_java, '-jar', str(launcher), '--installServer', str(cache)], cache, cache / 'installer.log')
+        if not (cache / installed).is_file():
+            raise RuntimeError(f'Installer did not produce its pinned server entry point: {installed}')
     work = module / 'build/integration'
     work.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix='run-', dir=work))
     (stage / 'mods').mkdir()
     shutil.copy2(jar, stage / 'mods' / jar.name)
     shutil.copy2(fixture, stage / 'mods' / fixture.name)
-    if definition['kind'] == 'installer':
+    if definition['kind'] in ('installer', 'legacy-forge'):
         (stage / 'libraries').symlink_to(cache / 'libraries', target_is_directory=True)
-        for shim in cache.glob('*-shim.jar'):
+        native_jars = cache.glob('*.jar') if definition.get('server_jar') else cache.glob('*-shim.jar')
+        for shim in native_jars:
             (stage / shim.name).symlink_to(shim)
     (stage / 'eula.txt').write_text('eula=true\n')
     with socket.socket() as available:
         available.bind(('127.0.0.1', 0)); port = available.getsockname()[1]
     generator = json.dumps({'layers': [{'block': 'minecraft:bedrock', 'height': 1},
                                       {'block': 'minecraft:grass_block', 'height': 1}], 'biome': 'minecraft:plains'})
+    if minecraft in ('1.16.5', '1.17', '1.17.1'):
+        settings = json.loads(generator)
+        settings['structures'] = {'structures': {}}
+        if minecraft == '1.17':
+            settings.pop('biome')
+        generator = json.dumps(settings)
+    legacy = definition['kind'] == 'legacy-forge'
+    level_type = definition.get('level_type', 'FLAT' if legacy else 'minecraft:flat')
+    if legacy:
+        generator = '3;minecraft:bedrock,2*minecraft:dirt,minecraft:grass;1;'
     (stage / 'server.properties').write_text(
         f'server-ip=127.0.0.1\nserver-port={port}\nonline-mode=false\nenforce-secure-profile=false\n'
-        f'level-type=minecraft:flat\ngenerator-settings={generator}\nlevel-seed=123456789\n'
+        f'level-type={level_type}\ngenerator-settings={generator}\nlevel-seed=123456789\n'
         'generate-structures=false\nview-distance=2\nsimulation-distance=2\n'
-        'pause-when-empty-seconds=-1\nmax-tick-time=300000\n')
+        'pause-when-empty-seconds=-1\nmax-tick-time=300000\n'
+        f'sync-chunk-writes={args.sync_chunk_writes}\n')
     digest = hashlib.sha256(jar.read_bytes()).hexdigest()
     print(f'{loader} {definition["version"]} native test directory: {stage}', flush=True)
     phases = []
@@ -96,8 +137,13 @@ def main():
         command = [java, '-Xms512M', '-Xmx2G', '-XX:ActiveProcessorCount=4', '-Dterminal.jline=false', '-Dterminal.ansi=false',
                    '-Dportallinked.integration=true', f'-Dportallinked.phase={phase}',
                    f'-Dportallinked.scenario={args.scenario or ""}']
-        command += ['-jar', str(launcher)] if definition['kind'] == 'fabric' else ['@' + str(cache / definition['args'])]
-        command += ['--nogui']
+        if definition['kind'] == 'fabric':
+            command += ['-jar', str(launcher)]
+        elif definition.get('server_jar'):
+            command += ['-jar', str(cache / definition['server_jar'])]
+        else:
+            command += ['@' + str(cache / definition['args'])]
+        command += ['nogui' if legacy else '--nogui']
         log = stage / f'console-{phase}.log'
         run_logged(command, stage, log)
         result = stage / f'result-{phase}.json'
@@ -108,11 +154,17 @@ def main():
             raise RuntimeError(f'{outcome["failure"]}; inspect {log}')
         if not outcome['checks']:
             raise RuntimeError('No checks executed')
+        if definition.get('fixture_post_stop_cleanup'):
+            marker = stage / 'fixture-post-stop.txt'
+            if not marker.is_file() or marker.read_text().strip() != str(phase):
+                raise RuntimeError('Native post-stop cleanup did not complete for this server phase')
+            outcome['post_stop_cleanup'] = definition['fixture_post_stop_cleanup']
         phases.append(outcome)
         print(f'Phase {phase}: {len(outcome["checks"])} checks passed', flush=True)
     if any(hashlib.sha256(path.read_bytes()).hexdigest() != digest for path in [jar, stage / 'mods' / jar.name]):
         raise RuntimeError('Runtime artifact changed during integration')
-    report = {'loader': loader, 'scenario': args.scenario, 'server': definition, 'jar_sha256': digest, 'phases': phases,
+    report = {'loader': loader, 'minecraft': minecraft, 'sync_chunk_writes': args.sync_chunk_writes == 'true',
+              'scenario': args.scenario, 'server': definition, 'jar_sha256': digest, 'phases': phases,
               'passed': sum(len(phase['checks']) for phase in phases), 'stage': str(stage)}
     (work / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps({'loader': loader, 'passed': report['passed'], 'jar_sha256': digest}), flush=True)

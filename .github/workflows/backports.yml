@@ -1,0 +1,86 @@
+name: Backport verification
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  targets:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Native runner argument contracts
+        run: python3 tools/test-integration-options.py
+      - id: matrix
+        run: echo "matrix=$(python3 tools/backports.py ci-matrix)" >> "$GITHUB_OUTPUT"
+  native:
+    name: ${{ matrix.minecraft }} / ${{ matrix.platform }}
+    needs: targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Set up Minecraft Java
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - name: Keep Minecraft Java path
+        run: echo "RUNTIME_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+      - name: Set up Forge installer Java
+        if: matrix.platform == 'forge' && !matrix.legacy_forge
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Keep installer Java path
+        if: matrix.platform == 'forge' && !matrix.legacy_forge
+        run: echo "INSTALLER_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+      - name: Set up build Java
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.build_java }}
+      - name: Set up legacy Forge workspace
+        if: matrix.setup_decomp
+        working-directory: ${{ matrix.module }}
+        run: ./gradlew setupDecompWorkspace -x getAssets --console=plain
+      - name: Build and unit tests
+        working-directory: ${{ matrix.module }}
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          args=(clean build --console=plain)
+          case "$PLATFORM" in
+            fabric|neoforge|forge) args+=(integrationFixture) ;;
+          esac
+          args+=("-Porg.gradle.java.installations.paths=$RUNTIME_JAVA_HOME")
+          ./gradlew "${args[@]}"
+      - name: Native portal transitions and restart
+        env:
+          MINECRAFT: ${{ matrix.minecraft }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          export PORTALLINKED_FIXTURE_JAVAC="$JAVA_HOME/bin/javac"
+          export JAVA_HOME="$RUNTIME_JAVA_HOME"
+          args=(native --minecraft "$MINECRAFT" --platform "$PLATFORM" --accept-eula)
+          if [[ -n "${INSTALLER_JAVA_HOME:-}" ]]; then
+            args+=(--installer-java "$INSTALLER_JAVA_HOME/bin/java")
+          fi
+          python3 tools/backports.py "${args[@]}"
+      - name: Upload runtime JAR and evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: portallinked-${{ matrix.platform }}-${{ matrix.minecraft }}
+          path: |
+            ${{ matrix.module }}/build/libs/portallinked-*.jar
+            ${{ matrix.module }}/build/integration*/result.json
+            ${{ matrix.module }}/build/integration*/run-*/console-*.log

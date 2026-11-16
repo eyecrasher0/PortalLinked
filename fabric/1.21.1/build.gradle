@@ -1,0 +1,53 @@
+plugins {
+    id 'net.fabricmc.fabric-loom-remap' version '1.17.21'
+    id 'java'
+}
+
+group = 'dev.eyecrasher.portallinked'
+version = '1.2.0+1.21.1'
+base { archivesName = 'portallinked-fabric' }
+
+repositories { mavenCentral() }
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}
+dependencies {
+    minecraft 'com.mojang:minecraft:1.21.1'
+    mappings loom.officialMojangMappings()
+    modImplementation 'net.fabricmc:fabric-loader:0.20.1'
+}
+sourceSets.main {
+    java.srcDir '../../mod-common/1.21.1/src/main/java'
+    resources.srcDir '../../mod-common/1.21.1/src/main/resources'
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+processResources {
+    filesMatching('fabric.mod.json') { expand version: project.version }
+    from('../../branding/icon.png')
+}
+tasks.withType(AbstractArchiveTask).configureEach { task ->
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+    if (task.name in ['jar', 'sourcesJar', 'integrationFixture']) {
+        from(files('LICENSE', 'NOTICE')) { into 'META-INF' }
+    }
+}
+
+apply from: '../../gradle/mod-integration.gradle'
+
+// The fixture is a separate mod and needs the same production namespace as the
+// released mod on obfuscated Minecraft versions.
+tasks.named('integrationFixture') { archiveClassifier = 'dev' }
+tasks.register('remapIntegrationFixture', net.fabricmc.loom.task.RemapJarTask) {
+    dependsOn tasks.named('integrationFixture')
+    inputFile = tasks.named('integrationFixture', Jar).flatMap { it.archiveFile }
+    archiveBaseName = 'portallinked-integration-fabric'
+    archiveVersion = '1'
+    archiveClassifier = ''
+    addNestedDependencies = false
+}
+tasks.named('build') { dependsOn tasks.named('remapIntegrationFixture') }

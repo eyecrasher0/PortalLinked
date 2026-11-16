@@ -17,6 +17,11 @@ and portal generation. Install one server plugin or mod; players need no client 
 
 ## Platforms
 
+The table lists the published 1.1.0 files for Minecraft 26.3. The unreleased
+1.2.0 update adds the [backport builds](BACKPORTS.md) and
+`portallinked-bukkit-1.2.0+26.3.jar` with the Folia fixes. The three unchanged
+26.3 mod builds retain version 1.1.0. Published files are not replaced.
+
 | Server | Install this file | Directory |
 | --- | --- | --- |
 | Paper, Spigot, Purpur, Folia | `portallinked-bukkit-1.1.0+26.3.jar` | `plugins/` |
@@ -28,6 +33,9 @@ Use only the file for your server. Fabric API is not required. Minimum loader
 versions are Fabric Loader 0.20.1, NeoForge 26.3.0.102 and Forge 66.1.5.
 This release targets Minecraft 26.3; older Minecraft versions are not included.
 Folia is verified against its 26.3 build 6 alpha and uses region/entity schedulers.
+
+Backport development and the exact-version queue are tracked in
+[BACKPORTS.md](BACKPORTS.md); planned targets are not released compatibility claims.
 
 ## Behavior
 
@@ -55,8 +63,12 @@ Folia is verified against its 26.3 build 6 alpha and uses region/entity schedule
 On Folia, new trips retain the server's native asynchronous portal travel.
 Remembered returns validate the destination on its owning region and move the
 player with `teleportAsync`. They use a clear position in the original portal
-and emit cancellable player portal/teleport events. Mounted players and swept
-contacts that already ended outside the portal volume retain native Folia routing.
+and emit cancellable player portal/teleport events. The unreleased return fix keeps
+a native-ready crossing eligible while its destination loads, even if the player
+walks beyond the frame. Cancellation or an unrelated teleport invalidates that
+pending return. If its saved exit is unavailable or validation expires, the
+accepted crossing continues through native lookup and records its actual exit.
+Mounted players retain native Folia routing.
 Player data is changed only on the owning region/entity thread, including native
 arrival and teleport completion callbacks.
 

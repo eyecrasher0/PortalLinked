@@ -6,6 +6,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.function.Consumer;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
@@ -17,7 +18,17 @@ final class FoliaNative {
         return player.getClass().getMethod("getHandle").invoke(player);
     }
 
-    /** Keep native travel pending without taking ownership of event cancellation. */
+    /** Native teleport sequence changes even when Folia omits Bukkit events. */
+    static Integer teleportVersion(Player player) {
+        try {
+            Object connection = Class.forName("net.minecraft.server.level.ServerPlayer").getField("connection").get(handle(player));
+            Field version = Class.forName("net.minecraft.server.network.ServerGamePacketListenerImpl").getDeclaredField("awaitingTeleport");
+            version.setAccessible(true);
+            return version.getInt(connection);
+        } catch (ReflectiveOperationException ex) { return null; }
+    }
+
+    /** Hold a crossing whose native readiness was already accepted by the caller. */
     static boolean hold(Player player, Location contact) {
         try {
             Object entity = handle(player);
@@ -31,7 +42,6 @@ final class FoliaNative {
                     Class.forName("net.minecraft.server.level.ServerLevel"), entityType).invoke(block, level, entity);
             if (process == null || !(boolean) process.getClass().getMethod("isSamePortal",
                     Class.forName("net.minecraft.world.level.block.Portal")).invoke(process, block)) {
-                if (delay != 0) return false;
                 Class<?> positionType = Class.forName("net.minecraft.core.BlockPos");
                 Object position = positionType.getConstructor(int.class, int.class, int.class)
                         .newInstance(contact.getBlockX(), contact.getBlockY(), contact.getBlockZ());
@@ -40,11 +50,27 @@ final class FoliaNative {
                 processField.set(entity, process);
             }
             Field time = process.getClass().getDeclaredField("portalTime"); time.setAccessible(true);
-            if (time.getInt(process) < delay - 1) return false;
             // Native code compares the old value before incrementing it. -1 also
             // holds zero-delay creative portals for this contact only.
             time.setInt(process, delay - 1);
             return true;
+        } catch (ReflectiveOperationException ex) { return false; }
+    }
+
+    static boolean resume(Player player, Location contact, World target, Runnable completed) {
+        try {
+            Object entity = handle(player);
+            Class<?> entityType = Class.forName("net.minecraft.world.entity.Entity");
+            Class<?> levelType = Class.forName("net.minecraft.server.level.ServerLevel");
+            Class<?> positionType = Class.forName("net.minecraft.core.BlockPos");
+            Object position = positionType.getConstructor(int.class, int.class, int.class)
+                    .newInstance(contact.getBlockX(), contact.getBlockY(), contact.getBlockZ());
+            Class<?> portalType = Class.forName("net.minecraft.world.entity.Entity$PortalType");
+            Object destination = target.getClass().getMethod("getHandle").invoke(target);
+            Consumer<Object> callback = moved -> completed.run();
+            Method resume = entityType.getDeclaredMethod("portalToAsync", levelType, positionType, boolean.class, portalType, Consumer.class);
+            resume.setAccessible(true);
+            return (boolean) resume.invoke(entity, destination, position, true, portalType.getField("NETHER").get(null), callback);
         } catch (ReflectiveOperationException ex) { return false; }
     }
 

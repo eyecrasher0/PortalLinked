@@ -1,0 +1,7 @@
+# Remember each player's return portal. Apply changes with /portallinked reload.
+# Keep all three keys: enabled/debug are booleans; excluded-worlds is a list. Null is invalid.
+enabled: true
+# Exact, case-sensitive world names. Either endpoint excludes the whole crossing.
+excluded-worlds: []
+# Log saved links, remembered returns and unavailable return portals.
+debug: false
