@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0 — Backports (unreleased)
+## 1.2.0 — Backports — 2026-11-16
 
 - Adds exact-version server builds for 1.7.10, 1.8.9, 1.12.2 and every stable
   Minecraft release from 1.16.5 through 26.2. The published 26.3 release remains

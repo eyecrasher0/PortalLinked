@@ -8,14 +8,13 @@ The resulting queue contains **38** exact Minecraft releases.
 The complete queue and upstream platform availability are recorded in
 [`tools/backport-targets.json`](tools/backport-targets.json). Availability means
 an official SDK or server exists; `planned` entries are not supported builds of
-PortalLinked. Only **26.3 / PortalLinked 1.1.0** is released at present.
-All **PortalLinked 1.2.0** backport adapters have completed local native
-verification. They remain unreleased until publication and CI verification.
-The queue records native verification separately from released builds.
-The Folia return follow-up has completed local native verification against each
-affected exact server SDK, including a real shutdown and restart.
-It also produces a new **1.2.0 Bukkit JAR for 26.3**; the published 1.1.0 artifacts
-and the unchanged 26.3 mod builds keep their existing versions.
+PortalLinked. PortalLinked **1.2.0** publishes the backports and a corrected
+**Bukkit 26.3** plugin. The unchanged Fabric, NeoForge and Forge builds for 26.3
+remain available as **1.1.0**. Published files and tags are retained.
+All 126 new runtime artifacts completed local native verification across
+202 exact server configurations, including real player saves and process
+restarts. GitHub CI runs separately; publication does not imply a completed CI
+verdict. The queue distinguishes upstream availability from released adapters.
 
 Folia 26.2 build7, 26.1.2 build8 and 1.21.11 build14 have an upstream limitation: its native asynchronous Nether
 travel path does not enforce `allowEnteringNetherUsingPortals`. PortalLinked

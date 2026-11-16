@@ -8,73 +8,28 @@
 
 ![PortalLinked](branding/icon.png)
 
-PortalLinked remembers each player's portal pair, returning them to their original
-portal when they retrace a Nether trip. New routes retain vanilla 1:8 scaling
-and portal generation. Install one server plugin or mod; players need no client mod.
+PortalLinked remembers each player's Nether portal pair. Return through the same portal to reach the base you left, while new routes keep normal Minecraft portal search, generation and 1:8 scaling.
 
-**Author:** EyeCrasher · **Minecraft:** 26.3 · **Java:** 25 ·
-**License:** GPL-3.0-only
+Players sharing a Nether portal can return to their own bases. Destroyed, extinguished, resized, blocked or excluded remembered exits use normal native routing. End portals, mobs and items retain their usual behavior.
 
-## Platforms
+## Choose your server build
 
-The table lists the published 1.1.0 files for Minecraft 26.3. The unreleased
-1.2.0 update adds the [backport builds](BACKPORTS.md) and
-`portallinked-bukkit-1.2.0+26.3.jar` with the Folia fixes. The three unchanged
-26.3 mod builds retain version 1.1.0. Published files are not replaced.
+Select the **exact Minecraft version and server/loader shown in the filename**.
 
-| Server | Install this file | Directory |
+| Server | File | Install in |
 | --- | --- | --- |
-| Paper, Spigot, Purpur, Folia | `portallinked-bukkit-1.1.0+26.3.jar` | `plugins/` |
-| Fabric | `portallinked-fabric-1.1.0+26.3.jar` | `mods/` |
-| NeoForge | `portallinked-neoforge-1.1.0+26.3.jar` | `mods/` |
-| Forge | `portallinked-forge-1.1.0+26.3.jar` | `mods/` |
+| Paper, Spigot, Purpur, Folia | `portallinked-bukkit-<version>+<minecraft>.jar` | `plugins/` |
+| Fabric | `portallinked-fabric-<version>+<minecraft>.jar` | `mods/` |
+| NeoForge | `portallinked-neoforge-<version>+<minecraft>.jar` | `mods/` |
+| Forge | `portallinked-forge-<version>+<minecraft>.jar` | `mods/` |
 
-Use only the file for your server. Fabric API is not required. Minimum loader
-versions are Fabric Loader 0.20.1, NeoForge 26.3.0.102 and Forge 66.1.5.
-This release targets Minecraft 26.3; older Minecraft versions are not included.
-Folia is verified against its 26.3 build 6 alpha and uses region/entity schedulers.
+Exact builds cover **1.7.10**, **1.8.9**, **1.12.2**, and every stable release from **1.16.5 through 26.3**. Platforms vary by Minecraft version: see the [exact support matrix](https://github.com/eyecrasher0/PortalLinked/blob/portallinked-1.2.0/tools/backport-targets.json). A listed Minecraft family does not mean every platform exists for every patch.
 
-Backport development and the exact-version queue are tracked in
-[BACKPORTS.md](BACKPORTS.md); planned targets are not released compatibility claims.
+Install one matching PortalLinked file on the server and replace older copies. PortalLinked itself is not required on clients, and Fabric API is not required. Forge 1.7.10 needs a matching Forge/FML client for its server login handshake. The 26.3 mods retain version **1.1.0**; the corrected Bukkit 26.3 build and the backports use **1.2.0**.
 
-## Behavior
+## Administrator settings
 
-- Remembers each player's last successful Overworld–Nether portal crossing.
-- Returning through the same arrival portal leads to that player's original
-  departure portal. Players sharing a Nether portal can return to different bases.
-- Recognizes the entire portal frame, including both axes and all standard
-  interior sizes from 2×3 to 21×21 blocks.
-- Other portals use Minecraft's normal portal lookup, coordinate scaling,
-  world border and exit generation.
-- If the original portal is extinguished, destroyed, resized or outside the
-  current world border, Minecraft's normal portal lookup is used. The same
-  applies when the player's current body cannot fit at the remembered exit or
-  Paper's live Nether ceiling policy excludes the saved portal.
-- Saves the pair alongside normal player saves, logout and orderly server
-  shutdown. Plugins use the player's PersistentDataContainer; mods use player
-  NBT. No external database is needed. The first crossing after installation
-  establishes a pair. A crash before a player save can lose the latest change.
-- Cancelled or failed crossings do not replace a valid saved pair. Other
-  plugins can cancel or redirect portal transitions.
-- End portals, mobs and items keep their existing behavior.
-- Uses player UUIDs, including players connected through Geyser on a compatible
-  server. No client mod or player setup is required; defaults work immediately.
-
-On Folia, new trips retain the server's native asynchronous portal travel.
-Remembered returns validate the destination on its owning region and move the
-player with `teleportAsync`. They use a clear position in the original portal
-and emit cancellable player portal/teleport events. The unreleased return fix keeps
-a native-ready crossing eligible while its destination loads, even if the player
-walks beyond the frame. Cancellation or an unrelated teleport invalidates that
-pending return. If its saved exit is unavailable or validation expires, the
-accepted crossing continues through native lookup and records its actual exit.
-Mounted players retain native Folia routing.
-Player data is changed only on the owning region/entity thread, including native
-arrival and teleport completion callbacks.
-
-## Administration
-
-The plugin creates `plugins/PortalLinked/config.yml` on first start:
+The Bukkit plugin creates `plugins/PortalLinked/config.yml`:
 
 ```yaml
 enabled: true
@@ -82,19 +37,7 @@ excluded-worlds: []
 debug: false
 ```
 
-All three keys must remain present with valid types: `enabled` and `debug` must
-be booleans, and `excluded-worlds` must be a list of non-empty world names.
-Missing keys, null values and empty scalar values are invalid; `[]` is a valid
-empty list of excluded worlds.
-
-Set `enabled: false` to use vanilla portal travel without recording new links.
-`excluded-worlds` accepts exact, case-sensitive world names, such as
-`[world_nether]`. If either endpoint is excluded, both routing and recording
-are skipped in both directions. Existing saved links are retained.
-`debug: true` logs saved links, remembered returns and unavailable return portals
-in English. It is off by default.
-
-The Fabric, NeoForge and Forge mods create `config/portallinked.json`:
+Fabric, NeoForge and Forge create `config/portallinked.json`:
 
 ```json
 {
@@ -104,42 +47,27 @@ The Fabric, NeoForge and Forge mods create `config/portallinked.json`:
 }
 ```
 
-For mods, exclusions use complete, case-sensitive dimension identifiers, such as
-`["minecraft:the_nether"]`. The settings have the same effect as the plugin
-settings. Both the namespace and path must be non-empty; `the_nether`,
-`:the_nether` and `minecraft:` are invalid. Keep all three fields present with
-the types shown above.
+Keep all three settings with the types shown. `enabled: false` preserves saved pairs while using normal portal travel. Excluded Bukkit worlds use exact world names; mods use complete dimension identifiers such as `minecraft:the_nether`. If either endpoint is excluded, both personal routing and recording are skipped. `debug: true` enables diagnostic logging.
 
-Apply configuration changes with `/portallinked reload`. The optional admin
-commands require `portallinked.admin` on Bukkit servers, granted to operators by
-default. The mods require vanilla gamemaster command permission (operator level 2):
+- `/portallinked reload` applies a valid configuration.
+- `/portallinked status` shows active settings.
+- `/portallinked forget [online-player]` clears that player's remembered pair; omit the name for yourself.
 
-- `/portallinked reload` reads the configuration from disk.
-- `/portallinked status` shows the active settings.
-- `/portallinked forget [online-player]` clears only that player's saved pair.
-  Omit the name to clear your own pair. The Bukkit console must supply an exact
-  online player name; mods also accept vanilla single-player selectors. Their
-  next crossing uses vanilla lookup and establishes a new pair.
+Bukkit commands require `portallinked.admin`, granted to operators by default. Mod commands require operator level 2. Invalid reloads retain the previous active settings and saved pairs. Invalid startup configuration keeps linking disabled until a valid reload.
 
-Successful reloads clear pending crossings. Forgetting also clears the selected
-player's pending crossing, so an arrival already in progress cannot recreate that link.
-If a key is missing or null, YAML/JSON syntax is invalid, or a setting has the wrong
-type, reload reports failure and retains the previous active settings, pending
-crossings and saved links. Fix the file and reload again. If the initial
-configuration is invalid, linking stays disabled until a valid reload succeeds.
+Links are stored with normal player data and survive player saves, logout, respawn and normal server restarts. No external database is required. A successful crossing establishes a fresh pair. Storage layouts are not automatically converted when changing between Bukkit, legacy Forge and modern mod adapters.
 
-## Installation
+## Forge 1.8.9 observation
 
-Stop the server, place the matching file from the platform table in `plugins/`
-or `mods/`, then start the server. Replace earlier PortalLinked JARs instead of
-loading multiple copies. To uninstall, stop the server, remove the JAR and start
-it again. Bukkit 1.0.0 player links and configuration remain compatible with 1.1.0.
-Mod saves are shared between Fabric, NeoForge and Forge; Bukkit player-link data
-is not automatically converted when changing between a plugin and a mod server.
+One manual return after a server restart reached a neighboring portal despite a saved pair, alongside an 80-block native movement rollback. Later manual and network-controlled repeats returned correctly, but the original cause remains unestablished.
+
+Author: **EyeCrasher**. License: **GPL-3.0-only**. [Source code](https://github.com/eyecrasher0/PortalLinked) · [Issue tracker](https://github.com/eyecrasher0/PortalLinked/issues).
 
 ## Build
 
-Use JDK 25 and the included Gradle wrapper:
+Each platform/version directory has its own wrapper and matching JDK. See
+[BACKPORTS.md](BACKPORTS.md) for the exact target list and historical build requirements.
+The commands below target Minecraft 26.3 with JDK 25:
 
 ```sh
 cd bukkit/26.3
@@ -177,8 +105,9 @@ shutdown/restart, configuration reload, permissions, invalid settings and
 individual link resets. Bukkit checks include live Paper ceiling changes where
 the server supports that policy. Folia checks run across region schedulers;
 the mod checks also cover native End, mob/item and respawn behavior.
-No external Java or Bedrock clients were connected during release checks;
-automated transitions do not establish end-to-end client compatibility.
+The automated fixtures exercise native server behavior. Representative manual
+client checks were performed separately; the suite does not establish every
+external client or protocol combination.
 
 ## License
 
