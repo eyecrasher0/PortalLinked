@@ -23,9 +23,9 @@ Select the **exact Minecraft version and server/loader shown in the filename**.
 | NeoForge | `portallinked-neoforge-<version>+<minecraft>.jar` | `mods/` |
 | Forge | `portallinked-forge-<version>+<minecraft>.jar` | `mods/` |
 
-Exact builds cover **1.7.10**, **1.8.9**, **1.12.2**, and every stable release from **1.16.5 through 26.3**. Platforms vary by Minecraft version: see the [exact support matrix](https://github.com/eyecrasher0/PortalLinked/blob/portallinked-1.2.0/tools/backport-targets.json). A listed Minecraft family does not mean every platform exists for every patch.
+Use the **Versions** tab on Modrinth, the **Files** tab on CurseForge, or the matching [GitHub release](https://github.com/eyecrasher0/PortalLinked/releases) to find the available combinations. Release notes link the exact support matrix and describe legacy build requirements.
 
-Install one matching PortalLinked file on the server and replace older copies. PortalLinked itself is not required on clients, and Fabric API is not required. Forge 1.7.10 needs a matching Forge/FML client for its server login handshake. The 26.3 mods retain version **1.1.0**; the corrected Bukkit 26.3 build and the backports use **1.2.0**.
+Install one matching PortalLinked file on the server and replace older copies. PortalLinked itself is not required on clients, and Fabric API is not required. Forge 1.7.10 needs a matching Forge/FML client for its server login handshake.
 
 ## Administrator settings
 
